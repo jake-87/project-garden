@@ -1,0 +1,7 @@
+(executable
+ (public_name named_pattern_unification)
+ (name main)
+ (libraries angstrom fmt ppx_deriving)
+ (preprocess (pps ppx_deriving.show))
+ (flags (:standard -warn-error -A))
+ )

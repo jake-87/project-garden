@@ -1,0 +1,8 @@
+_build
+input
+output
+a.out*
+*perf*
+gmon*
+*.svg
+massif*
