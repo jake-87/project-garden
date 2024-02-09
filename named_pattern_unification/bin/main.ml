@@ -76,8 +76,6 @@ and value =
   | VLam of name * closure
   | VPi of name * vty * closure
   | VU
-  | VMeta of metavar
-  | VVar of name 
 [@@deriving show {with_path = false}]
 
 
@@ -153,7 +151,6 @@ and vApp (t: value) (u: value): value =
   | VLam (s, t) -> closure t s u
   | VFlex (m, sp) -> VFlex (m, sp :: u)
   | VRigid (x, sp) -> VRigid (x, sp :: u)
-  | VMeta m -> VFlex (m, [] :: u)
   | x ->
     print_endline (show_value x);
     bad "impossible vapp"
@@ -166,7 +163,7 @@ and vAppSp (v: value) (sp: spine): value =
 and vMeta (m: metavar): value =
   match lookupMeta m with
   | Solved v -> v
-  | Unsolved -> VMeta m
+  | Unsolved -> VFlex m []
 
 and vAppBDs (e: env) (v: value) (bd: bd rev): value =
   match e with
@@ -185,8 +182,8 @@ and eval (e: env) (t: tm): value =
   | U -> VU
   | Pi (name, a, b) -> VPi (name, eval e a, Closure (e, b))
   | Let (name, _ty, a, b) -> eval (e :: (name, eval e a)) b 
-  | Meta m -> VMeta m
-  | InsertedMeta (m, bds) -> vAppBDs e (VMeta m) bds
+  | Meta m -> VFlex m []
+  | InsertedMeta (m, bds) -> vAppBDs e (VFlex m []) bds
 
 let rec force (v: value): value =
   match v with
@@ -210,8 +207,6 @@ and quote (v: value): tm =
   | VLam (name, t) -> Lam (name, quote (closure t name (VVar name)))
   | VPi (name, a, b) -> Pi (name, quote a, quote (closure b name (VVar name)))
   | VU -> U
-  | VMeta m -> Meta m
-  | VVar x -> Var x
 
 and nf (e: env) (t: tm): tm =
   quote (eval e t)
