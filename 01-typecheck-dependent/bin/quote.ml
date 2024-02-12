@@ -8,7 +8,7 @@ let bind_var (size: int) (k : int -> D.t -> 'a): 'a =
 
 let rec quote (size : int) (tm : D.t): R.t =
   match tm with
-  | Local i -> R.Local i
+  | Local i -> R.Local (size - i - 1)
   | Lam (a, b) -> R.Lam (a, None, quote_clo size b)
   | Pair (a, b) -> R.Pair (quote size a, quote size b)
   | Pi (nm, a, b) -> R.Pi (nm, quote size a, quote_clo size b)

@@ -5,11 +5,11 @@ open R
 
 let rec eval (env: D.env) (e : R.t) : D.t =
   let res = match e with
-    | Local ix -> D.index env ix
+    | Local ix ->
+      D.Local ix
     | Hole -> failwith "todo: holes"
     | Let (_nm, _ty, a, b) ->
-      let r = eval (D.extend env (eval env a)) b in
-      r
+       eval (D.extend env (eval env a)) b
     | Lam (a, _ty, b) -> D.Lam(a, {env; tm = b})
     | App (a, b) -> do_app (eval env a) (eval env b)
     | Pi (nm, a, b) ->
@@ -22,10 +22,12 @@ let rec eval (env: D.env) (e : R.t) : D.t =
     | Univ -> D.Univ
   in
   res
+    
 and do_app (fn: D.t) (arg: D.t): D.t =
   match fn with
   | D.Lam (_nm, clo) -> inst_clo clo arg
-  | _ -> failwith "can't app to non-cut/lam"
+  | _ ->
+    failwith "can't app to lam"
 
 and do_proj1 (arg: D.t): D.t =
   match (arg : D.t) with
