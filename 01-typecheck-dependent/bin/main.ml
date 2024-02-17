@@ -5,22 +5,35 @@ open Eval
 
 open Bidir 
 
+let let_ a b c d = Let(a,b,c,d)
+let some x = Some x
+let pi a b c = Pi(a, b, c)
+let lam a b c = Lam(a,b,c)
+let ix a = Local (Ix a)
+let app a b = App(a,b)
+
+
 let () =
-  let t = Let(
-      "Eq",
-      Some (Pi("A", Univ, Pi("_", Local 0, Pi("_", Local 1, Univ)))),
-      Lam("A", None,
-          Lam("x", Some (Local 0),
-              Lam("y", Some (Local 1),
-                  Pi("P",
-                     Pi("_", Local 2, Univ),
-                     Pi("_",
-                        App (Local 0, Local 2),
-                        App (Local 1, Local 2)
-                       ))))),
+  let t = let_
+      "Eq"
+      (some @@ pi "A" Univ (pi "_" (ix 0) (pi "_" (ix 1) Univ)))
+    (lam "A" None @@
+    lam "x" None @@
+    lam "y" None @@
+    pi "P" (pi "_" (ix 2) Univ)
+      (pi "_" (app (ix 0) (ix 2)) (app (ix 1) (ix 2))))
+    @@
+    let_ "refl"
+      (some @@ pi "A" Univ @@ pi "x" (ix 0) @@ app (app (app (ix 2) (ix 1)) (ix 0)) (ix 0))
+      (
+        lam "A'" None @@
+        lam "x'" None @@
+        lam "P'" None @@
+        lam "px'" None @@
+        ix 0
+      )
       Univ
-    )
-  in
+  in 
   print_endline "raw:";
   Raw.print [] t;
   print_newline ();
@@ -39,6 +52,6 @@ let () =
 
   let ty = Bidir.infer (Bidir.empty ()) t in
   print_endline "result:";
-  Raw.print [] ty;
+  D.print ty;
   
   print_endline "done"

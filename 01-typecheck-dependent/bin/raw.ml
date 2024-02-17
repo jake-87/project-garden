@@ -1,5 +1,8 @@
+type ix = Ix of int
+[@@deriving show {with_path = false}]
+
 type t =
-  | Local of int
+  | Local of ix
   | Hole
   | Let of string * t option * t * t
   (* ty tm tm *)
@@ -17,7 +20,7 @@ type t =
 
 let rec pprint (pp_env: string list) (fmt: Format.formatter) (tm: t) : unit =
   match tm with
-  | Local i ->
+  | Local (Ix i) ->
     begin try
         Format.fprintf fmt "%s" (List.nth pp_env i)
       with _ ->

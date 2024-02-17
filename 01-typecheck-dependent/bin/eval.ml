@@ -5,11 +5,16 @@ open R
 
 let rec eval (env: D.env) (e : R.t) : D.t =
   let res = match e with
-    | Local ix ->
-      D.Local ix
+    | Local (Ix ix) ->
+      let lvl = Debru.ix_to_lvl (List.length env) ix in
+      begin match snd
+          @@ List.nth env lvl with
+      | None -> D.Local(Lvl lvl, [])
+      | Some t -> t
+      end 
     | Hole -> failwith "todo: holes"
     | Let (_nm, _ty, a, b) ->
-       eval (D.extend env (eval env a)) b
+       eval (D.extend env (eval env a, None)) b
     | Lam (a, _ty, b) -> D.Lam(a, {env; tm = b})
     | App (a, b) -> do_app (eval env a) (eval env b)
     | Pi (nm, a, b) ->
@@ -26,19 +31,26 @@ let rec eval (env: D.env) (e : R.t) : D.t =
 and do_app (fn: D.t) (arg: D.t): D.t =
   match fn with
   | D.Lam (_nm, clo) -> inst_clo clo arg
+  | D.Local(t, s) -> D.Local(t, arg :: s)
   | _ ->
-    failwith "can't app to lam"
+    D.print fn;
+    D.print arg;
+    failwith "app lam"
+
 
 and do_proj1 (arg: D.t): D.t =
   match (arg : D.t) with
   | D.Pair (a, _b) -> a
-  | _ -> failwith "can't proj1 non-pair"
+  | _ ->
+    failwith "proj1"
 
+    
 and do_proj2 (arg: D.t): D.t =
   match arg with
   | D.Pair(_a, b) -> b
-  | _ -> failwith "can't proj2 non-pair"
+  | _ ->
+    failwith "proj2"
     
 and inst_clo clo arg =
-  eval (D.extend clo.env arg) clo.tm
+  eval (D.extend clo.env (arg, None)) clo.tm
   
