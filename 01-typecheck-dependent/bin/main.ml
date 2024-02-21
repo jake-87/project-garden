@@ -32,26 +32,24 @@ let () =
         lam "px'" None @@
         ix 0
       )
+      @@ let_ "univ=univ"
+      (some @@ app (app (app (ix 1) Univ) Univ) Univ)
+      (
+        app (app (ix 0) Univ) Univ
+      )
       Univ
   in 
   print_endline "raw:";
   Raw.print [] t;
   print_newline ();
-  
-  let ev = eval D.empty t in
-  print_endline "eval'd:";
-  Domain.print ev;
-  print_newline ();
-  
-  let nf = quote 0 ev in
-  print_endline "quote'd:";
-  Raw.print [] nf;
-  print_newline ();
 
   print_endline "typechecking...";
 
-  let ty = Bidir.infer (Bidir.empty ()) t in
+  let tm, ty = Bidir.infer' t in
   print_endline "result:";
   D.print ty;
-  
+  R.print [] tm;
+  print_endline "\n\nfrom:";
+  Raw.print [] t;
+  print_newline ();
   print_endline "done"

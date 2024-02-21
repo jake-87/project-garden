@@ -24,7 +24,7 @@ let rec pprint (pp_env: string list) (fmt: Format.formatter) (tm: t) : unit =
     begin try
         Format.fprintf fmt "%s" (List.nth pp_env i)
       with _ ->
-        Format.fprintf fmt "#%i" i
+        Format.fprintf fmt "ix #%i" i
     end 
   | Hole -> Format.fprintf fmt "?_"
   | Let (nm, None, a, b) ->
@@ -41,6 +41,8 @@ let rec pprint (pp_env: string list) (fmt: Format.formatter) (tm: t) : unit =
   | Lam (x, Some ty, b) ->
     Format.fprintf fmt "@[λ%s: %a. %a@]" x (pprint pp_env) ty (pprint (x :: pp_env)) b
   | App (a, b) -> Format.fprintf fmt "%a (%a)" (pprint pp_env) a (pprint pp_env) b
+  | Pi ("_", base, fam) ->
+    Format.fprintf fmt "@[%a -> %a@]" (pprint pp_env) base (pprint ("_" :: pp_env)) fam
   | Pi (x, base, fam) ->
     Format.fprintf fmt "@[Π(%s : %a)@] -> %a" x (pprint pp_env) base (pprint (x :: pp_env)) fam
   | Pair(a, b) ->
