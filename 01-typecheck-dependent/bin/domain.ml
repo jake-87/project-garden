@@ -1,3 +1,5 @@
+module M = Metavar
+
 type lvl = Lvl of int
 [@@deriving show {with_path = false}]
 
@@ -15,6 +17,7 @@ and env = t list
 
 and stuck =
   | Var of lvl
+  | Meta of M.metavar
   | Fst of stuck
   | Snd of stuck
   | App of {fn: stuck; arg: t}
@@ -24,6 +27,7 @@ and stuck =
 and clo = { tm : Raw.t; env: env }
 [@@deriving show {with_path = false}]
 
+let force t : t = t
 
 let empty : env = []
 let extend env v =

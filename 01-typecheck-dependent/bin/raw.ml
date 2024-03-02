@@ -1,9 +1,10 @@
+module M = Metavar
+
 type ix = Ix of int
 [@@deriving show {with_path = false}]
 
 type t =
   | Local of ix
-  | Hole
   | Let of string * t option * t * t
   (* ty tm tm *)
   | Lam of string * t option * t
@@ -14,6 +15,8 @@ type t =
   | Proj1 of t
   | Proj2 of t
   | Sigma of string * t * t
+  | Meta of M.metavar
+  | InsertedMeta of M.metavar
   | Univ
 [@@deriving show {with_path = false}]
 
@@ -26,7 +29,6 @@ let rec pprint (pp_env: string list) (fmt: Format.formatter) (tm: t) : unit =
       with _ ->
         Format.fprintf fmt "ix #%i" i
     end 
-  | Hole -> Format.fprintf fmt "?_"
   | Let (nm, None, a, b) ->
     Format.fprintf fmt "@[let %s =@ %a in@ %a@]" nm
       (pprint pp_env) a

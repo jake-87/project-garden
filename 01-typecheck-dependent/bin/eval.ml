@@ -7,7 +7,6 @@ let rec eval (env: D.env) (e : R.t) : D.t =
   let res = match e with
     | Local (Ix ix) ->
       D.index env ix
-    | Hole -> failwith "todo: holes"
     | Let (_nm, _ty, a, b) ->
        eval (D.extend env (eval env a)) b
     | Lam (a, _ty, b) -> D.Lam(a, {env; tm = b})

@@ -4,6 +4,11 @@ module Q = Quote
 module E = Eval
 module U = Unify
 
+type bd =
+  | Bound
+  | Defined
+[@@deriving show {with_path = false}]
+
 type env = {
   tms: D.env;
   tys: D.env;
@@ -12,6 +17,7 @@ type env = {
 }
 [@@deriving show {with_path = false}]
 
+    
 let empty () =
   {tms = []; tys = []; lvl = 0; names = []}
 
@@ -48,7 +54,6 @@ let rec check (env: env) (tm: R.t) (ty: D.t): unit =
     let env' = bind env fn nm in
     let clo = E.inst_clo out (Stuck (Var (Lvl env.lvl))) in
     check env' e clo
-  | Hole, _ -> failwith "todo: check holes"
   | tm, want ->
     let _tm', got = infer env tm in
     U.unify env.lvl want got
@@ -73,7 +78,6 @@ and infer (env: env) (tm: R.t): R.t * D.t =
     let ety' = Q.quote env.lvl ety in
     Lam(nm, Some t, e'), Pi("_", t', {env = env.tms; tm = ety'})
   | Lam(_nm, None, _e) -> failwith "lam inference needs holes"
-  | Hole -> failwith "can't do holes yet"
   | App(a, b) ->
     let a', aty = infer env a in
     let b', bty = infer env b in
