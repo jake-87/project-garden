@@ -12,6 +12,7 @@ type bd =
 type env = {
   tms: D.env;
   tys: D.env;
+  bds: bd list;
   lvl: int;
   names: string list;
 }
@@ -19,15 +20,26 @@ type env = {
 
     
 let empty () =
-  {tms = []; tys = []; lvl = 0; names = []}
+  {tms = []; tys = []; lvl = 0; names = []; bds = []}
 
 let define ctx tm ty name =
   {tms = tm :: ctx.tms; tys = ty :: ctx.tys; lvl = ctx.lvl + 1;
-  names = name :: ctx.names}
+   names = name :: ctx.names;
+  bds = Defined :: ctx.bds}
 
 let bind ctx ty name =
   {tms = (D.Stuck (D.Var (Lvl ctx.lvl))) :: ctx.tms; tys = ty :: ctx.tys; lvl = ctx.lvl + 1;
-  names = name :: ctx.names}
+   names = name :: ctx.names;
+   bds = Bound :: ctx.bds}
+
+let filter ctx: D.env =
+  List.combine ctx.tms ctx.bds
+  |> List.filter (fun (_tm, bd) ->
+      match bd with
+      | Bound -> true
+      | Defined -> false
+    )
+  |> List.map fst
 
 let get_ty_ix env ix =
   D.index env.tys ix
@@ -56,7 +68,7 @@ let rec check (env: env) (tm: R.t) (ty: D.t): unit =
     check env' e clo
   | tm, want ->
     let _tm', got = infer env tm in
-    U.unify env.lvl want got
+    U.unify (filter env) env.lvl want got
     
 and infer (env: env) (tm: R.t): R.t * D.t =
   print_endline " infer";
@@ -83,7 +95,7 @@ and infer (env: env) (tm: R.t): R.t * D.t =
     let b', bty = infer env b in
     begin match aty with
       | Pi(_nm, fn, out) ->
-        U.unify env.lvl fn bty;
+        U.unify (filter env) env.lvl fn bty;
         App(a', b'), E.inst_clo out (E.eval env.tms b')
       | _ ->
         print_endline "\nbad:";
@@ -96,6 +108,8 @@ and infer (env: env) (tm: R.t): R.t * D.t =
     let env' = bind env fn' nm in
     check env' out Univ;
     Pi(nm, fn, out), Univ
+  | Meta m -> tm, D.Stuck (D.Meta m)
+  | InsertedMeta m -> tm, D.Stuck (D.Meta m)
   | Pair _ | Proj1 _ | Proj2 _ | Sigma _ -> failwith "sigma can wait"
   | Univ -> Univ, Univ
       

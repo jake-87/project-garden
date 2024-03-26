@@ -19,6 +19,8 @@ let rec eval (env: D.env) (e : R.t) : D.t =
     | Sigma (nm, a, b) ->
       D.Sigma (nm, eval env a, {env; tm = b})
     | Univ -> D.Univ
+    | Meta m
+    | InsertedMeta m -> D.Stuck (D.Meta m)
   in
   res
     

@@ -53,6 +53,8 @@ let rec pprint (pp_env: string list) (fmt: Format.formatter) (tm: t) : unit =
   | Proj2 a -> Format.fprintf fmt "@[ π2 %a @]" (pprint pp_env) a
   | Sigma (x, base, fam) ->
     Format.fprintf fmt "@[Σ(%s : %a)@] × %a" x (pprint pp_env) base (pprint (x :: pp_env)) fam
+  | Meta m -> Format.fprintf fmt "@[!?%i@]" m
+  | InsertedMeta m -> Format.fprintf fmt "@[?%i@]" m
   | Univ -> Format.fprintf fmt "Univ"
 
 let print env tm =

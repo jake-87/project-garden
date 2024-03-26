@@ -75,6 +75,7 @@ and pprint_stuck (fmt: Format.formatter) (s: stuck) =
   | App {fn; arg} -> Format.fprintf fmt "@[%a (%a)@]"
                                 pprint_stuck fn
                                 pprint arg
+  | Meta m -> Format.fprintf fmt "?%i" m
 
 let print tm =
   pprint Format.std_formatter tm;
