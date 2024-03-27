@@ -8,7 +8,7 @@ open import Function using (_∋_; _$_)
 as-syntax : (A : Set) → A → A
 as-syntax _ x = x
 infix 0 as-syntax
-syntax as-syntax A x = x ⦂ A
+syntax as-syntax A x = x ∶ A
 
 cong₃ : ∀ {A B C D : Set} {x y z a b c} (f : A → B → C → D) → x ≡ a → y ≡ b → z ≡ c
   → f x y z ≡ f a b c
@@ -19,8 +19,8 @@ record Iso A B : Set where
   field
     left : A → B
     right : B → A
-    leftinv : ∀ {x : A} → right (left x) ≡ x
-    rightinv : ∀ {x : B} → left (right x) ≡ x
+    leftinv : ∀ {x : B} → left (right x) ≡ x
+    rightinv : ∀ {x : A} → right (left x) ≡ x
 
 data 𝔹 : Set where
   true : 𝔹
@@ -59,6 +59,9 @@ even-double {zero} = refl
 even-double {suc zero} = refl
 even-double {suc (suc n)} = even-double {n}
 
+even-double-suc : {n : ℕ} {b : 𝔹} → even? (suc (suc n)) ≡ b → even? n ≡ b
+even-double-suc ev = ev
+
 even-suc-double : {a : ℕ} → even? (suc (double a)) ≡ false
 even-suc-double {zero} = refl
 even-suc-double {suc zero} = refl
@@ -78,6 +81,14 @@ half~-suc-double-ref {zero} = refl
 half~-suc-double-ref {suc n} =
   trans (cong half~ refl) (cong suc half~-suc-double-ref)
 
+double-half~ : {n : ℕ} → even? n ≡ true → double (half~ n) ≡ n
+double-half~ {zero} even = refl
+double-half~ {suc (suc n)} even = (cong suc (cong suc (double-half~ even)))
+
+double-half~-suc : {n : ℕ} → even? (suc n) ≡ false → double (half~ (suc n)) ≡ n
+double-half~-suc {zero} sucodd = refl
+double-half~-suc {suc (suc n)} sucodd = cong suc (cong suc (double-half~-suc sucodd))
+
 to : ℕ → ℤ
 to n = if even? n then (+ (half~ n)) else (-[1+ (half~ n)  ])
 
@@ -85,8 +96,17 @@ from : ℤ → ℕ
 from (+ n) = double n
 from (-[1+ n ]) = suc (double n)
 
-to→from : (n : ℤ) → to (from n) ≡ n
-to→from (+_ zero) = refl
-to→from (+_ (suc n)) = cong₃ if_then_else_ (even-double {n}) (cong +_ (cong suc half~-double-ref)) refl
-to→from (-[1+_] zero) = refl
-to→from (-[1+_] (suc n)) = cong₃ if_then_else_ (even-suc-double {n}) refl (cong -[1+_] (cong suc half~-suc-double-ref))
+to→from : {n : ℤ} → to (from n) ≡ n
+to→from {+_ zero} = refl
+to→from {+_ (suc n)} = cong₃ if_then_else_ (even-double {n}) (cong +_ (cong suc half~-double-ref)) refl
+to→from { -[1+_] zero} = refl
+to→from { -[1+_] (suc n)} = cong₃ if_then_else_ (even-suc-double {n}) refl (cong -[1+_] (cong suc half~-suc-double-ref))
+
+from→to : {n : ℕ} → from (to n) ≡ n
+from→to {zero} = refl
+from→to {suc n} with even? (suc n) | inspect even? (suc n)
+from→to {suc n} | true  | [ eq ] = double-half~ eq
+from→to {suc n} | false | [ eq ] = cong suc (double-half~-suc eq)
+
+ℕ≃ℤ : Iso ℕ ℤ
+ℕ≃ℤ = to & from left to→from right from→to
