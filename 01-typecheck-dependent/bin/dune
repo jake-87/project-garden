@@ -1,0 +1,7 @@
+(executable
+ (public_name dependent_typechecker)
+ (name main)
+ (libraries angstrom fmt ppx_deriving dependent_typechecker)
+ (preprocess (pps ppx_deriving.show))
+ (flags (:standard -warn-error -A))
+ )
