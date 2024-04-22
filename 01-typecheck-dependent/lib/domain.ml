@@ -43,7 +43,12 @@ let empty : env = []
 
 let add (env: env) (elm: dom): env = elm :: env
 
-let index (env: env) (i: Syntax.ix) = List.nth env (Syntax.unix i)
+let index (env: env) (i: Syntax.ix) =
+  let (Ix l) = i in
+  print_string "attempt index: ";
+  print_int l;
+  print_newline ();
+  List.nth env (Syntax.unix i)
 
 let size (env: env) = List.length env
 

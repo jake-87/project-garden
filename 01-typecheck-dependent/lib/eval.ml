@@ -23,7 +23,7 @@ open D.Constructors
 let rec eval (env: D.env) (tm: S.syn): D.dom =
   match tm with
   | S.Local ix -> D.index env ix
-  | S.Let (_nm, head, body) -> eval (D.add env (eval env head)) body
+  | S.Let (_nm, _typ, head, body) -> eval (D.add env (eval env head)) body
   | S.Lam (nm, t) -> D.Lam (nm, D.{tm = t; env})
   | S.Ap (a, b) ->
     let a' = eval env a in

@@ -3,28 +3,19 @@ module D = Domain
 module E = Eval
 module Q = Quote
 module H = Helpers
+module B = Bidir
 
 open S.Constructors
 
 let (@@) f x = f x
 
 let example : S.syn =
-  lam "A"
-  @@ lam "x"
-  @@ lam "y"
-  @@ pi "P" (arr (local 2) u)
-  @@ arr (ap (local 0) (local 2))
-  @@ ap (local 1) (local 2)
+  lam "x" (pair (local 0) (local 0))
 
-
-let evald = E.eval [] example
-
-let quoted = Q.quote (D.Lvl 0) evald
+let exampletyp : D.dom =
+  D.Pi ("_", Univ, {tm = sg "n" Univ Univ; env = [] })
 
 let main () =
-  S.pp [] example;
-  D.pp evald;
-  S.pp [] quoted
-  
-
-  
+  let typ = B.check (B.empty_ctx ()) example exampletyp in
+  S.pp [] typ
+    

@@ -5,7 +5,8 @@ let unix (Ix i) = i
 
 type syn =
   | Local of ix
-  | Let of string * syn * syn
+  (* let name : t = b in x*)
+  | Let of string * syn * syn * syn
   | Lam of string * syn
   | Ap of syn * syn
   | Pair of syn * syn
@@ -31,12 +32,14 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
       | Failure _ ->
         Format.fprintf fmt "#%i" (unix ix)
     end 
-  | Let (nm, head, body) -> Format.fprintf fmt "let %s = %a in\n%a"
-                              nm
-                              (pp_syn (ix_add nm pp_env))
-                              head
-                              (pp_syn pp_env)
-                              body
+  | Let (nm, typ, head, body) -> Format.fprintf fmt "let %s : %a = %a in\n%a"
+                                   nm
+                                   (pp_syn pp_env)
+                                   typ
+                                   (pp_syn (ix_add nm pp_env))
+                                   head
+                                   (pp_syn pp_env)
+                                   body
   | Lam (nm, body) -> Format.fprintf fmt "λ%s. %a"
                         nm
                         (pp_syn (ix_add nm pp_env))
@@ -65,7 +68,7 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
                         a
                         (pp_syn (ix_add "_" pp_env))
                         b
-  | Sg (nm, a, b) -> Format.fprintf fmt "Σ (%s : %a) . %a"
+  | Sg (nm, a, b) -> Format.fprintf fmt "Σ (%s : %a) -> %a"
                        nm
                        (pp_syn pp_env)
                        a
@@ -82,7 +85,7 @@ let pp env tm =
 
 module Constructors = struct
   let local i = Local (Ix i)
-  let let_ nm a b = Let (nm, a, b)
+  let let_ nm t a b = Let (nm, t, a, b)
   let lam nm b = Lam (nm, b)
   let ap a b = Ap (a, b)
   let pair a b = Pair (a, b)
