@@ -1,9 +1,17 @@
+(* some helpers *)
 type lvl = Lvl of int
+
 let unlvl (Lvl i) = i
 
 let lvlsucc (Lvl i) = Lvl (i + 1)
+module M = Metas
 
 (* domain, using debrujin levels *)
+
+(* which terms are bounds (lams, sigmdas, etc) and which are
+   defined (let)
+*)
+type bd = Bound | Defined
 
 type dom =
   | Pair of dom * dom
@@ -19,15 +27,23 @@ and stuck = {tm: head; elims: elim list}
 
 and head =
   | Local of lvl
+  | Meta of M.meta
 
 and elim =
   | Ap of dom
   | First
   | Second
 
-and env = dom list
-
+and env = (bd * dom) list
+    
 let add_elim (s: stuck) (e: elim) = {tm = s.tm; elims = e :: s.elims}
+
+let rec add_elims (s: stuck) (e: elim list) =
+  match e with
+  | [] -> s
+  | x :: xs ->
+    let rest = add_elims s xs in
+    add_elim rest x
 
 let rec env_to_nums' env =
   match env with
@@ -41,17 +57,12 @@ let env_to_nums e = List.rev (env_to_nums' e)
 
 let empty : env = []
 
-let add (env: env) (elm: dom): env = elm :: env
+let add (env: env) (a: bd) (elm: dom): env = (a, elm) :: env
 
 let index (env: env) (i: Syntax.ix) =
-  let (Ix l) = i in
-  print_string "attempt index: ";
-  print_int l;
-  print_newline ();
   List.nth env (Syntax.unix i)
 
 let size (env: env) = List.length env
-
 
 let local (l: lvl) = Stuck {tm = (Local l); elims = []}
 
@@ -78,7 +89,8 @@ and pp_stuck (fmt: Format.formatter) (tm: stuck) =
 
 and pp_head (fmt: Format.formatter) (tm: head) =
   match tm with
-  | Local (Lvl l) -> Format.fprintf fmt "%i" l 
+  | Local (Lvl l) -> Format.fprintf fmt "%i" l
+  | Meta m -> M.pp_meta fmt m
 
 and pp_elims (fmt: Format.formatter) (e: elim list) =
   match e with
@@ -89,10 +101,22 @@ and pp_elims (fmt: Format.formatter) (e: elim list) =
     | Ap dom -> Format.fprintf fmt " .ap(%a) " pp_dom dom
     | First -> Format.fprintf fmt " .fst "
     | Second -> Format.fprintf fmt " .snd "
-    
+
+and pp_env fmt env =
+  Format.fprintf fmt "[";
+  List.iter (fun (_a, b) -> Format.fprintf fmt "%a, " pp_dom b) env;
+  Format.fprintf fmt "]\n"
+
+let pp_env' env = pp_env Format.std_formatter env
 
 let pp tm = pp_dom Format.std_formatter tm;
   Format.print_newline()
+
+
+type solver = Unsolved
+            | Solved of dom
+[@@deriving show {with_path = false}]
+
 
 module Constructors = struct 
   let pair a b = Pair (a, b)

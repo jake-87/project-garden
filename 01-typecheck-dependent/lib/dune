@@ -1,1 +1,3 @@
-(library (name dependent_typechecker))
+(library (name dependent_typechecker)
+	 (preprocess (pps ppx_deriving.show))
+)

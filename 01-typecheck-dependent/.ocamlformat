@@ -1,0 +1,4 @@
+profile = default
+if-then-else = vertical
+type-decl = sparse
+break-infix = fit-or-vertical

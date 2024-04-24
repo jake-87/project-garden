@@ -1,6 +1,6 @@
 type ix = Ix of int
 let unix (Ix i) = i
-
+module M = Metas
 (* somewhat user facing syntax, using debrujin indecies *)
 
 type syn =
@@ -14,6 +14,7 @@ type syn =
   | Second of syn
   | Pi of string * syn * syn
   | Sg of string * syn * syn
+  | Meta of M.meta
   | Univ
 
 type 'a ix_env = 'a list
@@ -29,21 +30,25 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
     begin try
         Format.fprintf fmt "%s" (ix_lookup ix pp_env)
       with
-      | Failure _ ->
+            | Failure _ ->
         Format.fprintf fmt "#%i" (unix ix)
     end 
   | Let (nm, typ, head, body) -> Format.fprintf fmt "let %s : %a = %a in\n%a"
                                    nm
                                    (pp_syn pp_env)
                                    typ
-                                   (pp_syn (ix_add nm pp_env))
-                                   head
                                    (pp_syn pp_env)
+                                   head
+                                   (pp_syn (ix_add nm pp_env))
                                    body
   | Lam (nm, body) -> Format.fprintf fmt "λ%s. %a"
                         nm
                         (pp_syn (ix_add nm pp_env))
                         body
+  | Ap (f, Ap (g, x)) ->
+    Format.fprintf fmt "%a (%a)"
+                   (pp_syn pp_env) f 
+                   (pp_syn pp_env) (Ap (g, x))
   | Ap (f, x) -> Format.fprintf fmt "%a %a"
                    (pp_syn pp_env) f 
                    (pp_syn pp_env) x
@@ -74,14 +79,19 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
                        a
                        (pp_syn (ix_add nm pp_env))
                        b
+  | Meta m -> M.pp_meta fmt m
   | Univ -> Format.fprintf fmt "Univ"
 
+and pp_ix_list fmt env =
+  match env with
+  | [] -> ()
+  | (Ix x) :: xs ->
+    pp_ix_list fmt xs;
+    Format.fprintf fmt "%i" x
 
 let pp env tm =
     pp_syn env Format.std_formatter tm;
     Format.print_newline()
-
-
 
 module Constructors = struct
   let local i = Local (Ix i)
