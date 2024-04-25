@@ -149,15 +149,23 @@ let rec check (ctx: ctx) (syn: S.syn) (typ: D.dom): S.syn =
   | s, t ->
     let typ = infer ctx s in
     print_endline "\ninferred:";
-    S.pp [] (fst typ);
+    S.pp ctx.names (fst typ);
     print_endline "of type";
     D.pp (snd typ);
     print_endline "unifying against:";
     D.pp t;
     if not @@ unify ctx.metactx ctx.lvl (snd typ) t then begin
       print_endline "\ntype err:";
-      D.pp (snd typ);
+      print_endline "metas:";
+      M.pp_metamap D.pp_solver Format.std_formatter ctx.metactx;
+      Format.print_flush();
+      print_endline "\ncan't unify:";
+      print_endline "expected:";
+      S.pp ctx.names s;
       D.pp t;
+      print_endline "got:";
+      S.pp ctx.names (fst typ);
+      D.pp (snd typ);
       H.cannot "bad :("
     end 
     else 
@@ -189,7 +197,11 @@ and infer (ctx: ctx) (syn: S.syn): (S.syn * D.dom) =
     D.pp tmp;
     begin match tmp with
       | D.Pi (_nm, head, clo) ->
-        print_endline "\nchecking the second arg";
+        print_endline "\nchecking the second arg of ap:";
+        S.pp ctx.names (fst atyp);
+        S.pp ctx.names b;
+        print_endline "against:";
+        D.pp tmp;
         let b' = check ctx b head in
         (S.Ap (fst atyp, b')), (E.inst_clo clo D.Bound (E.eval ctx.terms b'))
       | _ -> H.sorry "can't apply to non-pi"

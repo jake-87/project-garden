@@ -55,9 +55,9 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
   | Pair (a, b) -> Format.fprintf fmt "(%a, %a)"
                      (pp_syn pp_env) a
                      (pp_syn pp_env) b
-  | First a -> Format.fprintf fmt "%a .fst" (pp_syn pp_env) a
-  | Second a -> Format.fprintf fmt "%a .snd" (pp_syn pp_env) a
-  | Pi ("_", a, b) -> Format.fprintf fmt "%a -> %a"
+  | First a -> Format.fprintf fmt "(%a .fst)" (pp_syn pp_env) a
+  | Second a -> Format.fprintf fmt "(%a .snd)" (pp_syn pp_env) a
+  | Pi ("_", a, b) -> Format.fprintf fmt "(%a) -> %a"
                         (pp_syn pp_env)
                         a
                         (pp_syn (ix_add "_" pp_env))

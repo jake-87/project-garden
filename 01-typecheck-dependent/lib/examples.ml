@@ -1,5 +1,7 @@
+module R = Raw
 module S = Syntax
-open S.Constructors
+open R.Cons
+
 
 let (@@) f x = f x
 let fst' (a, _) = a
@@ -7,40 +9,90 @@ let snd' (_, b) = b
 
 let meta m = S.Meta (Metas.Metaid m)
 
-let l x = local x
-
 let bool' x =
   let_ "Bool"
     u
-    (pi "B" (meta 0) (pi "_" (l 0) (pi "_" (l 1) (l 2))))
+    (pi "B" u (arr (l "B") (arr (l "B") (l "B"))))
   @@ 
   let_ "true"
-    (l 0)
-    (lam "B" (lam "t" (lam "f" (l 1))))
+    (l "Bool")
+    (lam "B" (lam "t" (lam "f" (l "t"))))
   @@
   let_ "false"
-    (l 1)
-    (lam "B" (lam "t" (lam "f" (l 0))))
+    (l "Bool")
+    (lam "B" (lam "t" (lam "f" (l "f"))))
   @@
   let_ "not"
-    (pi "_" (l 2) (l 3))
-    (lam "b" (lam "B" (lam "t" (lam "f"
-                                  (ap (ap (ap (l 3) (l 2)) (l 0)) (l 1))
-                               ))))
+    (arr (l "Bool") (l "Bool"))
+    (lam "b"
+       (lam "B"
+          (lam "t"
+             (lam "f"
+                (ap4 (l "b") (l "B") (l "f") (l "t"))
+             ))))
     x
 
 let eq' x =
   let_ "Eq"
-    (pi "A" u (pi "_" (l 0) (pi "_" (l 1) u)))
+    (pi "A" u (arr (l "A") (arr (l "A") u)))
     (lam "A"
        (lam "x"
           (lam "y"
-             (pi "P" (pi "_" (l 2) u)
-                (pi "_" (ap (l 0) (l 2)) (ap (l 1) (l 2)))
+             (pi "P" (arr (l "A") u)
+                (arr (ap2 (l "P") (l "x")) (ap2 (l "P") (l "y")))
              ))))
   @@
   let_ "refl"
-    (pi "A" u (pi "x" (l 0) (ap (ap (ap (l 2) (l 1)) (l 0)) (l 0))))
-    (lam "A" (lam "x" (lam "P" (lam "px" (l 0)))))
+    (pi "A" u
+       (pi "x" (l "A")
+          (ap4 (l "Eq") (l "A") (l "x") (l "x"))))
+    (lam "A" (lam "x" (lam "P" (lam "px" (l "px")))))
   @@
+  x
+
+let nat x =
+  let_ "Nat"
+    u
+    (pi "N" u (arr (arr (l "N") (l "N")) (arr (l "N") (l "N"))))
+  @@
+  let_ "1"
+    (l "Nat")
+    (lam "N" (lam "s" (lam "z" (ap2 (l "s") (l "z")))))
+  @@
+  let_ "5"
+    (l "Nat")
+    (lam "N"
+       (lam "s"
+          (lam "z"
+             (ap2 (l "s") (ap2 (l "s") (ap2 (l "s") (ap2 (l "s") (ap "s" "z")))))
+          )))
+  @@
+  let_ "add"
+    (arr (l "Nat") (arr (l "Nat") (l "Nat")))
+    (lam "a"
+       (lam "b"
+          (lam "N"
+             (lam "s"
+                (lam "z"
+                   (ap4 (l "a") (l "N") (l "s")
+                      (ap4 (l "b") (l "N") (l "s") (l "z"))))))))
+  @@
+  let_ "mul"
+    (arr (l "Nat") (arr (l "Nat") (l "Nat")))
+    (lam "a"
+       (lam "b"
+          (lam "N"
+             (lam "s"
+                (lam "z" @@
+                   ap4 (l "a") (l "N") (ap3 (l "b") (l "N") (l "s")) (l "z")
+                )))))
+  @@
+  let_ "2"
+    (l "Nat")
+    (ap3 (l "add") (l "1") (l "1"))
+  @@
+  let_ "3"
+    (l "Nat")
+    (ap3 (l "add") (l "2") (l "1"))
+  @@    
   x

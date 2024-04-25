@@ -2,7 +2,7 @@ type meta = Metaid of int
 [@@deriving show {with_path = false}]
 
 let fresh_meta =
-  let i = ref (100) in
+  let i = ref (0) in
   fun () ->
     incr i;
     Metaid (!i)

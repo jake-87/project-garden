@@ -28,10 +28,10 @@ let create_partial_ren (l: D.lvl) (mmap: D.solver M.metamap) (elims: D.elim list
       begin match Q.force mmap d with
         (* check this *)
         | D.Stuck {tm = D.Local (Lvl l); elims = []} ->
-          if List.mem_assoc l ren then
+          if not @@ List.mem_assoc l ren then
             (D.lvlsucc dom, (l, dom) :: ren)
           else
-            H.cannot "can't pren non-var"
+            H.cannot "duplicate variable in ren"
         | _ -> H.cannot "can't pren non-var"
       end
     | _ -> H.cannot "can't pren non-ap"

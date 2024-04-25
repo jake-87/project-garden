@@ -4,49 +4,54 @@ module E = Eval
 module Q = Quote
 module H = Helpers
 module B = Bidir
+module R = Raw
 
-open S.Constructors
+open R.Cons
 
 let (@@) f x = f x
+let (++) f x = f x
 let fst' (a, _) = a
 let snd' (_, b) = b
 
 let meta m = S.Meta (Metas.Metaid m)
 
-let l x = local x
 module Ex = Examples
 
-let example : S.syn =
-  Ex.bool'
-  @@
+let term : R.raw =
   Ex.eq'
   @@
+  Ex.nat
+  @@
   let_ "eqtest"
-    (ap (ap (ap (l 1) (meta 1)) (l 3)) (ap (l 2) (ap (l 2) (l 3))))
-    (ap (ap (l 0) (meta 2)) (meta 3))
+    (ap4 (l "Eq") hole (l "5") hole)
+    (ap3 (l "refl") hole hole)
   @@
   u
   
-let typ : S.syn =
+let typ : R.raw =
   u
 
-let typ' : D.dom = E.eval [] typ
-
 let main () =
-  let m i = Metas.Metaid i in
-  let ctx = B.ctx_with_metas [m 0; m 1; m 2; m 3; m 4; m 5] in
-  print_endline "value:";
-  S.pp [] example;
-  print_endline "\ntype (raw):";
-  S.pp [] typ;
-  print_endline "\ntype:";
-  D.pp typ';
+  let ctx = B.empty_ctx () in
+  
+  let term' = Raw.elab ctx [] term in
+  let typ' = Raw.elab ctx [] typ in
+
+  print_endline "\nterm:";
+  S.pp [] term';
+  print_endline "\ntyp:";
+  S.pp [] typ';
+
+  let typ'' = E.eval [] typ' in
+
+  print_endline "\nelab typ:";
+  D.pp typ'';
 
   print_string "\npress enter to continue: ";
   ignore (read_line ());
 
   print_endline "\nbidir:";
-  let ret = B.check ctx example typ' in
+  let ret = B.check ctx term' typ'' in
   print_newline ();
   S.pp [] ret;
   print_endline "\nmetas:";
