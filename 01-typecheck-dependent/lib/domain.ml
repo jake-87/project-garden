@@ -15,8 +15,8 @@ type bd = Bound | Defined
 
 type dom =
   | Pair of dom * dom
-  | Lam of string * clo 
-  | Pi of string * dom * clo
+  | Lam of string * clo * Syntax.icit
+  | Pi of string * Syntax.icit * dom * clo
   | Sg of string * dom * clo
   | Stuck of stuck
   | Univ
@@ -30,7 +30,7 @@ and head =
   | Meta of M.meta
 
 and elim =
-  | Ap of dom
+  | Ap of dom * Syntax.icit
   | First
   | Second
 
@@ -70,9 +70,13 @@ let rec pp_dom (fmt: Format.formatter) (tm: dom) =
   match tm with
   | Pair (a, b) -> Format.fprintf fmt "#(%a, %a)"
                      pp_dom a pp_dom b
-  | Lam (nm, clo) -> Format.fprintf fmt "#λ%s. %a"
+  | Lam (nm, clo, Syntax.Expl) -> Format.fprintf fmt "#λ%s. %a"
+                                    nm pp_clo clo
+  | Lam (nm, clo, Syntax.Impl) -> Format.fprintf fmt "#λ{%s}. %a"
                        nm pp_clo clo
-  | Pi (nm, dom, clo) -> Format.fprintf fmt "#Π (%s : %a) -> %a"
+  | Pi (nm, Syntax.Impl, dom, clo) -> Format.fprintf fmt "#Π {%s : %a} -> %a"
+                           nm pp_dom dom pp_clo clo
+  | Pi (nm, Syntax.Expl, dom, clo) -> Format.fprintf fmt "#Π (%s : %a) -> %a"
                            nm pp_dom dom pp_clo clo
   | Sg (nm, dom, clo) -> Format.fprintf fmt "#Σ (%s : %a) -> %a"
                            nm pp_dom dom pp_clo clo
@@ -98,7 +102,8 @@ and pp_elims (fmt: Format.formatter) (e: elim list) =
   | x :: xs ->
     pp_elims fmt xs;
     match x with
-    | Ap dom -> Format.fprintf fmt " .ap(%a) " pp_dom dom
+    | Ap (dom, Syntax.Expl) -> Format.fprintf fmt " .ap(%a) " pp_dom dom
+    | Ap (dom, Syntax.Impl) -> Format.fprintf fmt " .ap{%a} " pp_dom dom
     | First -> Format.fprintf fmt " .fst "
     | Second -> Format.fprintf fmt " .snd "
 
@@ -120,8 +125,10 @@ type solver = Unsolved
 
 module Constructors = struct 
   let pair a b = Pair (a, b)
-  let lam s c = Lam (s, c)
-  let pi s d c = Pi (s, d, c)
+  let lam s c = Lam (s, c, Syntax.Expl)
+  let ilam s c  = Lam (s, c, Syntax.Impl)
+  let ipi s d c = Pi (s, Syntax.Impl, d, c)
+  let pi s d c = Pi (s, Syntax.Expl, d, c)
   let sg s d c = Sg (s, d, c)
   let stuck tm elims = Stuck {tm; elims}
   let u = Univ
@@ -130,7 +137,8 @@ module Constructors = struct
                         
   let local i = Local i
       
-  let ap d = Ap d
+  let ap d = Ap (d, Syntax.Expl)
+  let iap d = Ap (d, Syntax.Impl)
   let fst = First
   let snd = Second
 end

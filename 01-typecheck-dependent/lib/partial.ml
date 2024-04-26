@@ -23,7 +23,7 @@ let create_partial_ren (l: D.lvl) (mmap: D.solver M.metamap) (elims: D.elim list
   let rec go (elims: D.elim list): (D.lvl * (int * D.lvl) list) =
     match elims with
     | [] -> (Lvl 0, [])
-    | D.Ap d :: xs ->
+    | D.Ap (d, _) :: xs ->
       let (dom, ren) = go xs in
       begin match Q.force mmap d with
         (* check this *)
@@ -48,8 +48,8 @@ let rename (mmap: D.solver M.metamap) (m: M.meta)
   let rec goSp (pren: partial_ren) (tm: S.syn) (e: D.elim list): S.syn =
    match e with
     | [] -> tm
-    | (D.Ap d) :: xs ->
-      S.Ap ((goSp pren tm xs), (go pren d))
+    | (D.Ap (d, i)) :: xs ->
+      S.Ap ((goSp pren tm xs), (go pren d), i)
     | D.First :: xs ->
       S.First (goSp pren tm xs)
     | D.Second :: xs ->
@@ -57,14 +57,16 @@ let rename (mmap: D.solver M.metamap) (m: M.meta)
   and go (pren: partial_ren) (v: D.dom): S.syn =
     match Q.force mmap v with
     | D.Pair (a, b) -> S.Pair((go pren a), (go pren b))
-    | D.Lam (x, clo) ->
+    | D.Lam (x, clo, i) ->
       S.Lam (x,
              go
                (lift_new_var pren)
                (E.inst_clo clo D.Bound
-                  (D.Stuck {tm = Local (pren.codomsize); elims = []})))
-    | D.Pi (x, hd, clo) ->
+                  (D.Stuck {tm = Local (pren.codomsize); elims = []})),
+            i)
+    | D.Pi (x, i, hd, clo) ->
       S.Pi (x,
+            i,
             go pren hd,
             go (lift_new_var pren)
               (E.inst_clo clo D.Bound
@@ -96,15 +98,20 @@ let rename (mmap: D.solver M.metamap) (m: M.meta)
   go pren tm 
 
 
-let lams (l: D.lvl) (s: S.syn) =
-  let l' = D.unlvl l in
-  let rec go (x: int) (t: S.syn) =
-    if x == l' then
-      t
-    else
-      S.Lam ("$" ^ string_of_int (x + 1), go (x + 1) t)
+let lams (icits: S.icit list) (s: S.syn) =
+  let rec go (icits) (x: int) (t: S.syn) =
+    match icits with
+    | [] -> t
+    | s :: ss ->
+      S.Lam ("$" ^ string_of_int (x + 1), go ss (x + 1) t, s)
   in
-  go 0 s
+  go icits 0 s
+
+let rec extract_icits e =
+  match e with
+  | [] -> []
+  | D.Ap (_, i) :: xs -> i :: extract_icits xs
+  | _ -> H.cannot "can't metavar extract_icits non-ap"
 
 let solve (mmap: D.solver M.metamap)
     (l: D.lvl) (mv: M.meta) (e: D.elim list) (rhs: D.dom): unit =
@@ -121,7 +128,7 @@ let solve (mmap: D.solver M.metamap)
   print_newline ();
   let pren = create_partial_ren l mmap e in
   let rhs = rename mmap mv pren rhs in
-  let solution = E.eval [] (lams pren.domsize rhs) in
+  let solution = E.eval [] (lams (List.rev @@ extract_icits e) rhs) in
   print_endline "solution:";
   D.pp solution;
   Format.print_flush();

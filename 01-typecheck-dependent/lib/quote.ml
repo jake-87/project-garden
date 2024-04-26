@@ -11,23 +11,24 @@ open S.Constructors
    syntax land
 *)
 
-let app_to (fn: D.dom) (arg: D.dom): D.dom =
+let app_to (fn: D.dom) (arg: D.dom) (i: S.icit): D.dom =
   match fn with
-  | D.Lam (_nm, clo) -> E.inst_clo clo D.Bound arg
-  | D.Stuck s -> D.Stuck (D.add_elim s (D.Ap arg))
+  | D.Lam (_nm, clo, _) -> E.inst_clo clo D.Bound arg
+  | D.Stuck s -> D.Stuck (D.add_elim s (D.Ap (arg, i)))
   | _ -> H.cannot "can't app to non-lam/stuck"
 
-let rec app_to_many (fn: D.dom) (args: D.dom list): D.dom =
+let rec app_to_many (fn: D.dom) (args: (D.dom * S.icit) list): D.dom =
   match args with
   | [] -> fn
   | x :: xs ->
     let fn' = app_to_many fn xs in
-    app_to fn' x
+    let (a, b) = x in
+    app_to fn' a b
 
-let assume_aps (e: D.elim list): D.dom list =
+let assume_aps (e: D.elim list): (D.dom * S.icit) list =
   List.map (fun e ->
       match e with
-      | D.Ap d -> d
+      | D.Ap (d, i) -> (d, i)
       | _ -> H.cannot "cannot force meta with elim of non-ap"
     ) e
 
@@ -43,11 +44,15 @@ let rec force (metactx: D.solver M.metamap) (tm: D.dom): D.dom =
 let rec quote (l: D.lvl) (metactx: 'a M.metamap) (tm: D.dom): S.syn =
   match force metactx tm with
   | D.Pair (a, b) -> pair (quote l metactx a) (quote l metactx b) 
-  | D.Lam (nm, clo) ->
-    lam nm (quote (D.lvlsucc l) metactx
-              (E.inst_clo clo D.Bound (Stuck {tm = Local l; elims=[]})))
-  | D.Pi (nm, a, clo) ->
+  | D.Lam (nm, clo, i) ->
+    lam' nm (quote (D.lvlsucc l) metactx
+               (E.inst_clo clo D.Bound (Stuck {tm = Local l; elims=[]})))
+      i
+  | D.Pi (nm, S.Expl, a, clo) ->
     pi nm (quote l metactx a) (quote (D.lvlsucc l) metactx
+                                 (E.inst_clo clo D.Bound (Stuck {tm=Local l; elims=[]})))
+  | D.Pi (nm, S.Impl, a, clo) ->
+    ipi nm (quote l metactx a) (quote (D.lvlsucc l) metactx
                          (E.inst_clo clo D.Bound (Stuck {tm=Local l; elims=[]})))
   | D.Sg (nm, a, clo) ->
     sg nm (quote l metactx a) (quote (D.lvlsucc l) metactx
@@ -65,7 +70,7 @@ and app_elims (l: D.lvl) (metactx: D.solver M.metamap) (tm: S.syn) (e: D.elim li
   | x :: xs ->
     let rest = app_elims l metactx tm xs in
     (match x with
-     | D.Ap d -> ap rest (quote l metactx d)
+     | D.Ap (d, i) -> ap' rest (quote l metactx d) i
      | D.First -> fst rest
      | D.Second -> snd rest
     )

@@ -61,6 +61,9 @@ let ctx_with_metas ms =
 let new_var (ctx: ctx) = 
   D.Stuck {tm = D.Local ctx.lvl; elims = []}
 
+let from_lvl (l) =
+  D.Stuck {tm = D.Local l; elims = []}
+
 let inst_newvar l a =
   E.inst_clo a D.Bound (D.Stuck {tm = D.Local l; elims = []})
 
@@ -89,10 +92,17 @@ let rec unify (mmap: D.solver M.metamap) (l: D.lvl) (d1: D.dom) (d2: D.dom): boo
   match Q.force mmap d1, Q.force mmap d2 with
   | Pair (a, b), Pair (x, y) ->
     (unify mmap l a x) && (unify mmap l b y)
-  | Lam (_, a), Lam(_, b) ->
+  | Lam (_, a, i), Lam(_, b, i') ->
+    i = i' &&
     unify mmap (D.lvlsucc l) (inst_newvar l a) (inst_newvar l b)
-  | Sg (_, a, clo), Sg (_, b, clo2)
-  | Pi (_, a, clo), Pi (_, b, clo2) ->
+  | Lam (_, b, i), t
+  | t, Lam (_, b, i) ->
+    unify mmap (D.lvlsucc l) (Q.app_to t (from_lvl l) i) (E.inst_clo b D.Bound (from_lvl l))
+  | Sg (_, a, clo), Sg (_, b, clo2) ->
+    unify mmap l a b && unify mmap (D.lvlsucc l) (inst_newvar l clo) (inst_newvar l clo2)
+
+  | Pi (_, i, a, clo), Pi (_, i', b, clo2) ->
+    i = i' &&
     unify mmap l a b && unify mmap (D.lvlsucc l) (inst_newvar l clo) (inst_newvar l clo2)
   | Stuck {tm = Meta m; elims}, t
   | t, Stuck {tm = Meta m; elims} ->
@@ -120,7 +130,7 @@ and unifySpine mmap l elims elims2 =
 
 and unifyElim mmap l x y =
   match x, y with
-  | Ap a, Ap b -> unify mmap l a b
+  | Ap (a, _), Ap (b, _) -> unify mmap l a b
   | First, First -> true
   | Second, Second -> true
   | _, _ -> false (* TODO: change to a type error *)
@@ -132,9 +142,11 @@ let rec check (ctx: ctx) (syn: S.syn) (typ: D.dom): S.syn =
   print_endline "against:";
   D.pp typ;
   match syn, Q.force ctx.metactx typ with
-  | S.Lam (nm, body), D.Pi (nm', head, clo) ->
+  | S.Lam (nm, body, i), D.Pi (nm', i', head, clo) when i = i' ->
     let body' = check (bind ctx nm' head) body (E.inst_clo clo D.Bound (new_var ctx)) in
-    S.Lam (nm, body')
+    S.Lam (nm, body', i)
+  | t, D.Pi(nm, S.Impl, head, clo) ->
+    S.Lam (nm, check (bind ctx nm head) t (E.inst_clo clo D.Bound (new_var ctx)), S.Impl)
   | S.Pair (a, b), D.Sg (_nm, head, clo) ->
     let atyp = check ctx a head in
     let body' = check ctx b (E.inst_clo clo D.Bound (new_var ctx)) in
@@ -147,7 +159,7 @@ let rec check (ctx: ctx) (syn: S.syn) (typ: D.dom): S.syn =
     let body' = check (define ctx nm vequals vtyp) body t in
     S.Let (nm, typ', equals', body')
   | s, t ->
-    let typ = infer ctx s in
+    let typ = insert_impl_apps ctx @@ infer ctx s in
     print_endline "\ninferred:";
     S.pp ctx.names (fst typ);
     print_endline "of type";
@@ -183,27 +195,39 @@ and infer (ctx: ctx) (syn: S.syn): (S.syn * D.dom) =
     let head' = check ctx head vtyp in
     let body = infer ctx body in
     S.Let(nm, typ', head', fst body), snd body
-  | S.Lam (nm, bd) ->
+  | S.Lam (nm, bd, i) ->
+
     let meta = M.fresh_meta () in
     M.set ctx.metactx meta D.Unsolved; 
     let try' = E.eval ctx.terms (S.Meta meta) in
-    let (tm, ty) = infer (bind ctx nm try') bd in
-    S.Lam(nm, tm),
-    D.Pi(nm, try', {tm = Q.quote (D.lvlsucc ctx.lvl) ctx.metactx ty; env = ctx.terms})
-  | S.Ap (a, b) ->
-    let atyp = infer ctx a in
+    let (tm, ty) = insert_impl_apps ctx @@ infer (bind ctx nm try') bd in
+    S.Lam(nm, tm, i),
+    
+    D.Pi(nm, i, try', {tm = Q.quote (D.lvlsucc ctx.lvl) ctx.metactx ty; env = ctx.terms})
+  | S.Ap (a, b, i) ->
+    let (i', a, atyp) =
+      match i with
+      | S.Impl ->
+        let (q, w) = infer ctx a in
+        (S.Impl, q, w)
+      | S.Expl ->
+        let (a, atyp) = insert_impl_apps_pi ctx (infer ctx a) in
+        (S.Expl, a, atyp)
+    in
     print_endline "\nap: inferred:";
-    let tmp = Q.force ctx.metactx (snd atyp) in
+    let tmp = Q.force ctx.metactx atyp in
     D.pp tmp;
     begin match tmp with
-      | D.Pi (_nm, head, clo) ->
+      | D.Pi (_nm, pii, head, clo) ->
+        if pii <> i' then
+          H.cannot "expl/impl conflict";
         print_endline "\nchecking the second arg of ap:";
-        S.pp ctx.names (fst atyp);
+        S.pp ctx.names a;
         S.pp ctx.names b;
         print_endline "against:";
         D.pp tmp;
         let b' = check ctx b head in
-        (S.Ap (fst atyp, b')), (E.inst_clo clo D.Bound (E.eval ctx.terms b'))
+        (S.Ap (a, b', i')), (E.inst_clo clo D.Bound (E.eval ctx.terms b'))
       | _ -> H.sorry "can't apply to non-pi"
     end 
   | S.Pair (a, b) ->
@@ -225,11 +249,11 @@ and infer (ctx: ctx) (syn: S.syn): (S.syn * D.dom) =
       | D.Sg (_, _, clo) -> S.Second f, inst_newvar ctx.lvl clo
       | _ -> H.cannot "can't second non-sigma"
     end
-  | S.Pi (nm, head, clo) ->
+  | S.Pi (nm, i, head, clo) ->
     let head' = check ctx head D.Univ in
     let vhead = E.eval ctx.terms head in
     let clo' = check (bind ctx nm vhead) clo D.Univ in
-    S.Pi (nm, head', clo'), Univ
+    S.Pi (nm, i, head', clo'), Univ
   | S.Sg (nm, head, clo) ->
     let head' = check ctx head D.Univ in
     let vhead = E.eval ctx.terms head in
@@ -245,3 +269,21 @@ and infer (ctx: ctx) (syn: S.syn): (S.syn * D.dom) =
     end 
     
   | S.Univ -> S.Univ, D.Univ
+
+and insert_impl_apps_pi ctx (tm, typ) =
+  let rec go tm typ =
+    match Q.force ctx.metactx typ with
+    | D.Pi (_nm, S.Impl, _a, b) ->
+      let m = M.fresh_meta () in
+      M.set ctx.metactx m Unsolved;
+      let m' = S.Meta m in
+      let mv = E.eval (ctx.terms) m' in
+      go (S.Ap (tm, m', S.Impl)) (E.inst_clo b D.Bound mv)
+    | vt -> tm, vt
+  in
+  go tm typ
+
+and insert_impl_apps ctx (tm, typ) =
+  match tm with
+  | S.Lam (_, _, S.Impl) -> (tm, typ)
+  | _ -> insert_impl_apps_pi ctx (tm, typ)

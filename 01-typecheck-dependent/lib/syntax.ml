@@ -3,16 +3,19 @@ let unix (Ix i) = i
 module M = Metas
 (* somewhat user facing syntax, using debrujin indecies *)
 
+type icit = Impl | Expl
+[@@deriving show {with_path = false}]
+
 type syn =
   | Local of ix
   (* let name : t = b in x*)
   | Let of string * syn * syn * syn
-  | Lam of string * syn
-  | Ap of syn * syn
+  | Lam of string * syn * icit
+  | Ap of syn * syn * icit
   | Pair of syn * syn
   | First of syn
   | Second of syn
-  | Pi of string * syn * syn
+  | Pi of string * icit * syn * syn
   | Sg of string * syn * syn
   | Meta of M.meta
   | Univ
@@ -41,15 +44,28 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
                                    head
                                    (pp_syn (ix_add nm pp_env))
                                    body
-  | Lam (nm, body) -> Format.fprintf fmt "λ%s. %a"
+  | Lam (nm, body, Impl) -> Format.fprintf fmt "λ{%s}. %a"
                         nm
                         (pp_syn (ix_add nm pp_env))
                         body
-  | Ap (f, Ap (g, x)) ->
+  | Lam (nm, body, Expl) -> Format.fprintf fmt "λ%s. %a"
+                        nm
+                        (pp_syn (ix_add nm pp_env))
+                        body
+  | Ap (f, Ap (g, x, i), Impl) ->
+    Format.fprintf fmt "%a {%a}"
+                   (pp_syn pp_env) f 
+                   (pp_syn pp_env) (Ap (g, x, i))
+  | Ap (f, Ap (g, x, i), Expl) ->
     Format.fprintf fmt "%a (%a)"
                    (pp_syn pp_env) f 
-                   (pp_syn pp_env) (Ap (g, x))
-  | Ap (f, x) -> Format.fprintf fmt "%a %a"
+                   (pp_syn pp_env) (Ap (g, x, i))
+  | Ap (f, x, Expl) ->
+    Format.fprintf fmt "%a %a"
+                   (pp_syn pp_env) f 
+                   (pp_syn pp_env) x
+  | Ap (f, x, Impl) ->
+    Format.fprintf fmt "%a {%a}"
                    (pp_syn pp_env) f 
                    (pp_syn pp_env) x
   | Pair (a, b) -> Format.fprintf fmt "(%a, %a)"
@@ -57,12 +73,23 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
                      (pp_syn pp_env) b
   | First a -> Format.fprintf fmt "(%a .fst)" (pp_syn pp_env) a
   | Second a -> Format.fprintf fmt "(%a .snd)" (pp_syn pp_env) a
-  | Pi ("_", a, b) -> Format.fprintf fmt "(%a) -> %a"
+  | Pi ("_", Impl, a, b) -> Format.fprintf fmt "{%a} -> %a"
                         (pp_syn pp_env)
                         a
                         (pp_syn (ix_add "_" pp_env))
                         b
-  | Pi (nm, a, b) -> Format.fprintf fmt "Π (%s : %a) -> %a"
+  | Pi ("_", Expl, a, b) -> Format.fprintf fmt "(%a) -> %a"
+                        (pp_syn pp_env)
+                        a
+                        (pp_syn (ix_add "_" pp_env))
+                        b
+  | Pi (nm, Impl, a, b) -> Format.fprintf fmt "Π {%s : %a} -> %a"
+                       nm
+                       (pp_syn pp_env)
+                       a
+                       (pp_syn (ix_add nm pp_env))
+                       b                      
+  | Pi (nm, Expl, a, b) -> Format.fprintf fmt "Π (%s : %a) -> %a"
                        nm
                        (pp_syn pp_env)
                        a
@@ -96,13 +123,19 @@ let pp env tm =
 module Constructors = struct
   let local i = Local (Ix i)
   let let_ nm t a b = Let (nm, t, a, b)
-  let lam nm b = Lam (nm, b)
-  let ap a b = Ap (a, b)
+  let lam nm b = Lam (nm, b, Expl)
+  let ilam nm b = Lam (nm, b, Impl)
+  let lam' nm b i = Lam (nm, b, i)
+  let ap a b = Ap (a, b, Expl)
+  let iap a b = Ap (a, b, Impl)
+  let ap' a b i = Ap (a, b, i)
   let pair a b = Pair (a, b)
   let fst a = First a
   let snd b = Second b
-  let pi nm a b = Pi (nm, a, b)
-  let arr a b = Pi ("_", a, b)
+  let ipi nm a b = Pi (nm, Impl, a, b)
+  let pi nm a b = Pi (nm, Expl, a, b)
+  let pi' nm a b i = Pi (nm, i, a, b)
+  let arr a b = Pi ("_", Expl, a, b)
   let sg nm a b = Sg (nm, a, b)
   let u = Univ
 end

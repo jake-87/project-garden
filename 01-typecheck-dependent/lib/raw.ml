@@ -4,15 +4,16 @@ module B = Bidir
 module M = Metas
 module D = Domain
 
+
 type raw =
   | Local of string
   | Let of string * raw * raw * raw
-  | Lam of string * raw
-  | Ap of raw * raw
+  | Lam of string * S.icit * raw
+  | Ap of raw * raw * S.icit
   | Pair of raw * raw
   | First of raw
   | Second of raw
-  | Pi of string * raw * raw
+  | Pi of string * S.icit * raw * raw
   | Sg of string * raw * raw
   | Hole
   | Univ
@@ -25,17 +26,22 @@ let pp r = pp_raw Format.std_formatter r;
 module Cons = struct
   let l l = Local l
   let let_ s a b c = Let(s,a,b,c)
-  let lam s r = Lam(s, r)
-  let ap a b = (Ap (l a, l b))
-  let ap2 a b = Ap(a,b)
-  let ap3 a b c = (Ap(Ap(a,b),c))
-  let ap4 a b c d = Ap(Ap(Ap(a,b),c),d)
-  let ap5 a b c d e = Ap(Ap(Ap(Ap(a,b),c),d),e)
+  let lam s r = Lam(s, S.Expl, r)
+  let ap a b = (Ap (l a, l b, S.Expl))
+  let ap2 a b = Ap(a,b, S.Expl)
+  let ap3 a b c = (Ap(Ap(a,b, S.Expl),c, S.Expl))
+  let ap4 a b c d = Ap(Ap(Ap(a,b, S.Expl),c, S.Expl),d, S.Expl)
+  let ap5 a b c d e = Ap(Ap(Ap(Ap(a,b, S.Expl),c, S.Expl),d, S.Expl),e, S.Expl)
   let pair a b = Pair(a,b)
   let first a = First a
   let second b = Second b
-  let pi s a b = Pi(s,a,b)
-  let arr a b = Pi("_",a,b)
+  let pi s a b = Pi(s,S.Expl,a,b)
+  let arr a b = Pi("_",S.Expl,a,b)
+
+  let ilam s r = Lam(s,S.Impl,r)
+  let ipi nm a b = Pi(nm,S.Impl,a,b)
+  let iapp a b = Ap(a,b,S.Impl)
+  
   let sg s a b = Sg(s,a,b)
   let hole = Hole
   let u = Univ
@@ -54,19 +60,19 @@ let rec elab (mctx: B.ctx) (ctx: string list) (r: raw): S.syn =
     let head' = elab mctx ctx head in
     let tail' = elab mctx (nm :: ctx) tail in
     S.Let (nm, typ', head', tail')
-  | Lam (nm, body) ->
-    S.Lam (nm, elab mctx (nm :: ctx) body)
-  | Ap (a, b) ->
+  | Lam (nm, i, body) ->
+    S.Lam (nm, elab mctx (nm :: ctx) body, i)
+  | Ap (a, b, i ) ->
     let b' = elab mctx ctx b in
-    S.Ap (elab mctx ctx a, b')
+    S.Ap (elab mctx ctx a, b', i)
   | Pair (a, b) ->
     let b' = elab mctx ctx b in
     S.Pair (elab mctx ctx a, b')
   | First s -> S.First (elab mctx ctx s)
   | Second s -> S.Second (elab mctx ctx s)
-  | Pi (nm, head, tail) ->
+  | Pi (nm, i, head, tail) ->
     let tail' = elab mctx (nm :: ctx) tail in
-    S.Pi(nm, elab mctx ctx head, tail')
+    S.Pi(nm, i, elab mctx ctx head, tail')
   | Sg (nm, head, tail) ->
     let tail' = elab mctx (nm :: ctx) tail in
     S.Sg(nm, elab mctx ctx head, tail')

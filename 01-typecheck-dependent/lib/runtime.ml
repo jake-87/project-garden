@@ -18,13 +18,15 @@ let meta m = S.Meta (Metas.Metaid m)
 module Ex = Examples
 
 let term : R.raw =
-  Ex.eq'
+  Ex.bool'
   @@
-  Ex.nat
+  let_ "id"
+    (ipi "A" u (arr (l "A") (l "A")))
+    (lam "x" (l "x"))
   @@
-  let_ "eqtest"
-    (ap4 (l "Eq") hole (l "5") hole)
-    (ap3 (l "refl") hole hole)
+  let_ "false'"
+    (l "Bool")
+    (ap2 (iapp (l "id") (l "Bool")) (l "false"))
   @@
   u
   
