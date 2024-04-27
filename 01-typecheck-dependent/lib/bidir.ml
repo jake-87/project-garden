@@ -142,9 +142,11 @@ let rec check (ctx: ctx) (syn: S.syn) (typ: D.dom): S.syn =
   print_endline "against:";
   D.pp typ;
   match syn, Q.force ctx.metactx typ with
-  | S.Lam (nm, body, i), D.Pi (nm', i', head, clo) when i = i' ->
-    let body' = check (bind ctx nm' head) body (E.inst_clo clo D.Bound (new_var ctx)) in
+  | S.Lam (nm, body, i), D.Pi (_nm', i', head, clo) when i = i' ->
+    
+    let body' = check (bind ctx nm head) body (E.inst_clo clo D.Bound (new_var ctx)) in
     S.Lam (nm, body', i)
+      
   | t, D.Pi(nm, S.Impl, head, clo) ->
     S.Lam (nm, check (bind ctx nm head) t (E.inst_clo clo D.Bound (new_var ctx)), S.Impl)
   | S.Pair (a, b), D.Sg (_nm, head, clo) ->
@@ -158,6 +160,25 @@ let rec check (ctx: ctx) (syn: S.syn) (typ: D.dom): S.syn =
     let vequals = E.eval (ctx.terms) equals' in
     let body' = check (define ctx nm vequals vtyp) body t in
     S.Let (nm, typ', equals', body')
+
+  | S.Letrec (nm, typ, head, body), t ->
+    let typsyn = check ctx typ D.Univ in
+    let vtyp = E.eval (ctx.terms) typsyn in
+    let equalsyn = check
+        (define ctx nm (D.Stuck {tm = Local (ctx.lvl); elims = []}) vtyp)
+        head
+        vtyp
+    in
+    let equals' = E.eval
+        ((D.Defined, D.Stuck {tm = Local (ctx.lvl); elims = []}) :: ctx.terms)
+        equalsyn
+    in
+    let ctx' = define ctx nm equals' vtyp in
+    let equals'' = E.eval ctx'.terms equalsyn in
+    let ctx'' = define ctx nm equals'' vtyp in
+    let body' = check ctx'' body t in
+    S.Letrec (nm, typsyn, equalsyn, body')
+
   | s, t ->
     let typ = insert_impl_apps ctx @@ infer ctx s in
     print_endline "\ninferred:";
@@ -195,6 +216,27 @@ and infer (ctx: ctx) (syn: S.syn): (S.syn * D.dom) =
     let head' = check ctx head vtyp in
     let body = infer ctx body in
     S.Let(nm, typ', head', fst body), snd body
+  | S.Letrec (nm, typ, head, body) ->
+
+    (* basically copy pasted from Check *)
+    
+    let typsyn = check ctx typ D.Univ in
+    let vtyp = E.eval (ctx.terms) typsyn in
+    let equalsyn = check
+        (define ctx nm (D.Stuck {tm = Local (ctx.lvl); elims = []}) vtyp)
+        head
+        vtyp
+    in
+    let equals' = E.eval
+        ((D.Defined, D.Stuck {tm = Local (ctx.lvl); elims = []}) :: ctx.terms)
+        equalsyn
+    in
+    let ctx' = define ctx nm equals' vtyp in
+    let equals'' = E.eval ctx'.terms equalsyn in
+    let ctx'' = define ctx nm equals'' vtyp in
+    let body' = infer ctx'' body in
+    S.Letrec (nm, typsyn, equalsyn, fst body'), snd body' 
+
   | S.Lam (nm, bd, i) ->
 
     let meta = M.fresh_meta () in

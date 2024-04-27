@@ -10,6 +10,7 @@ type syn =
   | Local of ix
   (* let name : t = b in x*)
   | Let of string * syn * syn * syn
+  | Letrec of string * syn * syn * syn
   | Lam of string * syn * icit
   | Ap of syn * syn * icit
   | Pair of syn * syn
@@ -41,6 +42,14 @@ let rec pp_syn (pp_env : string ix_env) (fmt: Format.formatter) (tm: syn) =
                                    (pp_syn pp_env)
                                    typ
                                    (pp_syn pp_env)
+                                   head
+                                   (pp_syn (ix_add nm pp_env))
+                                   body
+  | Letrec (nm, typ, head, body) -> Format.fprintf fmt "letrec %s : %a = %a in\n%a"
+                                   nm
+                                   (pp_syn pp_env)
+                                   typ
+                                   (pp_syn (ix_add nm pp_env))
                                    head
                                    (pp_syn (ix_add nm pp_env))
                                    body

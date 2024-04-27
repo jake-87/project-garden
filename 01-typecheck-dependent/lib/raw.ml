@@ -8,6 +8,7 @@ module D = Domain
 type raw =
   | Local of string
   | Let of string * raw * raw * raw
+  | Letrec of string * raw * raw * raw
   | Lam of string * S.icit * raw
   | Ap of raw * raw * S.icit
   | Pair of raw * raw
@@ -26,6 +27,7 @@ let pp r = pp_raw Format.std_formatter r;
 module Cons = struct
   let l l = Local l
   let let_ s a b c = Let(s,a,b,c)
+      let letrec s a b c = Letrec(s,a,b,c)
   let lam s r = Lam(s, S.Expl, r)
   let ap a b = (Ap (l a, l b, S.Expl))
   let ap2 a b = Ap(a,b, S.Expl)
@@ -60,6 +62,11 @@ let rec elab (mctx: B.ctx) (ctx: string list) (r: raw): S.syn =
     let head' = elab mctx ctx head in
     let tail' = elab mctx (nm :: ctx) tail in
     S.Let (nm, typ', head', tail')
+  | Letrec (nm, typ, head, tail) ->
+    let typ' = elab mctx ctx typ in
+    let head' = elab mctx (nm :: ctx) head in
+    let tail' = elab mctx (nm :: ctx) tail in
+    S.Letrec(nm, typ', head', tail')
   | Lam (nm, i, body) ->
     S.Lam (nm, elab mctx (nm :: ctx) body, i)
   | Ap (a, b, i ) ->

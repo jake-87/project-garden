@@ -27,6 +27,17 @@ let rec eval (env: D.env) (tm: S.syn): D.dom =
   | S.Local ix ->
     let (_, dom) = D.index env ix in dom
   | S.Let (_nm, _typ, head, body) -> eval (D.add env Defined (eval env head)) body
+  | S.Letrec (_nm, _typ, head, body) ->
+    (* this is probably not correct *)
+    let env1 = D.add env Defined (D.Stuck {tm = Local (Lvl (D.size env)); elims = []}) in
+    print_endline "letrec eval";
+    let head1 = eval env1 head in
+    print_endline "head1:";
+    D.pp head1;
+    let head2 = eval (D.add env Defined head1) head in
+    print_endline "head2:";
+    D.pp head2;
+    eval (D.add env Defined head2) body
   | S.Lam (nm, t, i) -> D.Lam (nm, D.{tm = t; env}, i)
   | S.Ap (a, b, i) ->
     let a' = eval env a in

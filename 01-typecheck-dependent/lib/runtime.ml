@@ -18,18 +18,20 @@ module Ex = Examples
 let term : R.raw =
   Ex.bool'
   @@
+  Ex.nat
+  @@
   Ex.eq'
   @@
-  let_ "id"
-    (ipi "A" u (arr (l "A") (l "A")))
-    (lam "x" (l "x"))
-  @@
-  let_ "false'"
-    (l "Bool")
-    (ap "id" "false")
+  letrec "foo"
+    (arr (l "Bool") (l "Bool"))
+    (lam "a" (ap4 (l "a") (l "Bool") (ap "foo" "false") (l "false")))
   @@
   let_ "eqtest"
-    (ap3 (l "Eq") (l "false") (l "false'"))
+    (ap3 (l "Eq") (ap2 (l "foo") (ap "not" "false")) (ap "foo" "false"))
+    (l "refl")
+  @@
+  let_ "test2"
+    (ap3 (l "Eq") (l "1") (l "1"))
     (l "refl")
   @@
   u
