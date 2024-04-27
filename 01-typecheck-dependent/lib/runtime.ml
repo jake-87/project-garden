@@ -13,12 +13,12 @@ let (++) f x = f x
 let fst' (a, _) = a
 let snd' (_, b) = b
 
-let meta m = S.Meta (Metas.Metaid m)
-
 module Ex = Examples
 
 let term : R.raw =
   Ex.bool'
+  @@
+  Ex.eq'
   @@
   let_ "id"
     (ipi "A" u (arr (l "A") (l "A")))
@@ -26,7 +26,11 @@ let term : R.raw =
   @@
   let_ "false'"
     (l "Bool")
-    (ap2 (iapp (l "id") (l "Bool")) (l "false"))
+    (ap "id" "false")
+  @@
+  let_ "eqtest"
+    (ap3 (l "Eq") (l "false") (l "false'"))
+    (l "refl")
   @@
   u
   

@@ -34,8 +34,8 @@ let bool' x =
 
 let eq' x =
   let_ "Eq"
-    (pi "A" u (arr (l "A") (arr (l "A") u)))
-    (lam "A"
+    (ipi "A" u (arr (l "A") (arr (l "A") u)))
+    (ilam "A"
        (lam "x"
           (lam "y"
              (pi "P" (arr (l "A") u)
@@ -43,10 +43,10 @@ let eq' x =
              ))))
   @@
   let_ "refl"
-    (pi "A" u
-       (pi "x" (l "A")
-          (ap4 (l "Eq") (l "A") (l "x") (l "x"))))
-    (lam "A" (lam "x" (lam "P" (lam "px" (l "px")))))
+    (ipi "A" u
+       (ipi "x" (l "A")
+          (ap3 (l "Eq")(l "x") (l "x"))))
+    (ilam "A" (ilam "x" (lam "P" (lam "px" (l "px")))))
   @@
   x
 
