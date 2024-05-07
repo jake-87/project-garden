@@ -16,23 +16,13 @@ let snd' (_, b) = b
 module Ex = Examples
 
 let term : R.raw =
-  Ex.bool'
-  @@
-  Ex.nat
-  @@
-  Ex.eq'
-  @@
   letrec "foo"
-    (arr (l "Bool") (l "Bool"))
-    (lam "a" (ap4 (l "a") (l "Bool") (ap "foo" "false") (l "false")))
+    (arr u u)
+    (lam "a" (ap "foo" "a"))
   @@
-  let_ "eqtest"
-    (ap3 (l "Eq") (ap2 (l "foo") (ap "not" "false")) (ap "foo" "false"))
-    (l "refl")
-  @@
-  let_ "test2"
-    (ap3 (l "Eq") (l "1") (l "1"))
-    (l "refl")
+  let_ "foo2"
+    (ap2 (l "foo") u)
+    (u)
   @@
   u
   

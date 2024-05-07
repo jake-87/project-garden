@@ -85,7 +85,9 @@ let rec pp_dom (fmt: Format.formatter) (tm: dom) =
 
 and pp_clo (fmt: Format.formatter) (tm: clo) =
   let {tm; env} = tm in
-  Syntax.pp_syn (env_to_nums env) fmt tm 
+  Format.fprintf fmt "(clo %a %a)"
+    (Syntax.pp_syn []) tm
+    pp_env env
 
 and pp_stuck (fmt: Format.formatter) (tm: stuck) =
   let {tm; elims} = tm in
@@ -110,9 +112,10 @@ and pp_elims (fmt: Format.formatter) (e: elim list) =
 and pp_env fmt env =
   Format.fprintf fmt "[";
   List.iter (fun (_a, b) -> Format.fprintf fmt "%a, " pp_dom b) env;
-  Format.fprintf fmt "]\n"
+  Format.fprintf fmt "]"
 
-let pp_env' env = pp_env Format.std_formatter env
+let pp_env' env = pp_env Format.std_formatter env; Format.print_flush ();
+  print_newline ()
 
 let pp tm = pp_dom Format.std_formatter tm;
   Format.print_newline()

@@ -195,9 +195,11 @@ let rec check (ctx: ctx) (syn: S.syn) (typ: D.dom): S.syn =
       print_endline "\ncan't unify:";
       print_endline "expected:";
       S.pp ctx.names s;
+      print_endline "of type:";
       D.pp t;
       print_endline "got:";
       S.pp ctx.names (fst typ);
+      print_endline "of type:";
       D.pp (snd typ);
       H.cannot "bad :("
     end 
