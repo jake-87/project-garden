@@ -1,0 +1,5 @@
+(executable
+ (public_name hello_world)
+ (name main)
+ (libraries mylib)
+ (flags (:standard -warn-error -A)))

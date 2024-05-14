@@ -1,0 +1,5 @@
+{"error":".zip archives do not support non-regular files","level":"error","msg":"unable to write file .cache/replit/modules/replit","time":"2024-05-14T11:38:38Z"}
+{"error":".zip archives do not support non-regular files","level":"error","msg":"unable to write file _build/install/default/bin/hello_world","time":"2024-05-14T11:38:38Z"}
+{"error":".zip archives do not support non-regular files","level":"error","msg":"unable to write file _build/install/default/lib/mylib/META","time":"2024-05-14T11:38:38Z"}
+{"error":".zip archives do not support non-regular files","level":"error","msg":"unable to write file _build/install/default/lib/mylib/dune-package","time":"2024-05-14T11:38:38Z"}
+{"error":".zip archives do not support non-regular files","level":"error","msg":"unable to write file _build/install/default/lib/mylib/opam","time":"2024-05-14T11:38:38Z"}
