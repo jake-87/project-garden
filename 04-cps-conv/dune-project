@@ -1,6 +1,6 @@
 (lang dune 3.13)
 
-(name named_pattern_unification)
+(name cps)
 
 (generate_opam_files true)
 
@@ -16,7 +16,7 @@
 (documentation https://url/to/documentation)
 
 (package
- (name named_pattern_unification)
+ (name cps)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends ocaml dune angstrom fmt ppx_deriving)
