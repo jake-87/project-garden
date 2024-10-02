@@ -26,7 +26,34 @@ and cval =
   | Cfn of string * string * ctm
 [@@deriving show {with_path = false}]
 
+let rec spaces i =
+  if i = 0 then ""
+  else " " ^ (spaces (i - 1))
 
+let rec p_ctm i ctm =
+  print_string (spaces i);
+  match ctm with
+  | Clet(a,i,b,e) -> print_string ("let " ^ a ^ " = p" ^ string_of_int i
+                                   ^ " " ^ b ^ " in\n");
+                    p_ctm i e
+  | Cletv(a,v,e) -> print_string ("letv " ^ a ^ " = "); p_cval (i+1)v;
+                   print_string" in\n";
+                   p_ctm i e
+  | Cletc(a,b,e1,e2) ->
+     print_string ("letc " ^ a ^ " " ^ b ^ " =\n"); p_ctm (i+1)e1;
+     print_string " in\n";
+     p_ctm i e2
+  | Cappc(a,b) -> print_string @@ a ^ " " ^ b
+  | Capp(a,b,c) -> print_string @@ a ^ " " ^ b ^ " " ^ c
+  | Ccase(a,b,c) -> print_string @@ "case " ^ a ^ "of |l " ^ b ^ " |r " ^ c 
+and p_cval i cval =
+  match cval with
+  | CU -> print_string "()"
+  | Cpair(a,b) -> print_string ("(" ^ a ^ ", " ^ b ^ ")")
+  | Cin(i,s) -> print_string @@ "inj" ^ string_of_int i ^ " " ^ s
+  | Cfn(a,b,e) -> print_string @@ "funk " ^ a ^ " " ^ b ^ " ->\n";
+                 p_ctm i e
+  
 
 let fv =
   let s = ref 0 in
@@ -129,9 +156,17 @@ and rd ml k =
 
 let () =
   (* #1 ((\x -> (g x, x)) y)*)
-  let example = Pr(1,(App(Fn("x",Pair(App(V"g",V"x"),V"x")),V"y"))) in
+  let example =
+    Let("pair", Fn("x",Fn("y",Pair(V"x",V"y"))),
+        Let("qpair", App(V"pair",V"q"),
+            App(V"qpair",V"w")
+          )
+      )
+  in
   print_endline "start:";
   print_endline (show_ml example);
-  let as_cps = rd example "DONE" in
+  let as_cps = rd example "NEXT" in
   print_endline "\nafter:";
-  print_endline (show_ctm as_cps)
+  print_endline (show_ctm as_cps);
+  print_endline "\nslash\n";
+  p_ctm 0 as_cps;
