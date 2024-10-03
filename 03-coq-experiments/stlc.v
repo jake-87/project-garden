@@ -88,3 +88,12 @@ Proof.
     + destruct H9.
   - destruct H0.
 Qed.
+
+Lemma no_self_apply2 : not (exists S T, Has [] (Lam "x" S (App (Var "x") (Var "x"))) T).
+Proof.
+  intros [S [T H]].
+  repeat dependent destruction H.
+  dependent destruction H0; destruct H,H0; try easy.
+  inversion H; inversion H0; subst; clear H H0.
+  induction t; try easy. inversion H3. now subst.
+Qed.
