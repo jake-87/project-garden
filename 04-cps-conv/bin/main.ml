@@ -30,22 +30,24 @@ let rec spaces i =
   if i = 0 then ""
   else " " ^ (spaces (i - 1))
 
+let (let@) x f = x f
+
 let rec p_ctm i ctm =
   print_string (spaces i);
   match ctm with
   | Clet(a,i,b,e) -> print_string ("let " ^ a ^ " = p" ^ string_of_int i
                                    ^ " " ^ b ^ " in\n");
-                    p_ctm i e
+                    p_ctm (i+2) e
   | Cletv(a,v,e) -> print_string ("letv " ^ a ^ " = "); p_cval (i+1)v;
                    print_string" in\n";
-                   p_ctm i e
+                   p_ctm (i+1) e
   | Cletc(a,b,e1,e2) ->
      print_string ("letc " ^ a ^ " " ^ b ^ " =\n"); p_ctm (i+1)e1;
      print_string " in\n";
-     p_ctm i e2
+     p_ctm (i) e2
   | Cappc(a,b) -> print_string @@ a ^ " " ^ b
   | Capp(a,b,c) -> print_string @@ a ^ " " ^ b ^ " " ^ c
-  | Ccase(a,b,c) -> print_string @@ "case " ^ a ^ "of |l " ^ b ^ " |r " ^ c 
+  | Ccase(a,b,c) -> print_string @@ "case " ^ a ^ " of |l=> " ^ b ^ " |r=> " ^ c 
 and p_cval i cval =
   match cval with
   | CU -> print_string "()"
@@ -69,97 +71,89 @@ let rec sq ml k =
   | V s -> k s
   | U -> let x=fv() in Cletv(x, CU, k x)
   | App(e1,e2) ->
-     sq e1 (fun z1 ->
-         sq e2 (fun z2 ->
-             let x = fv() in
-             let c = fk() in 
-             Cletc(c, x, k x, Capp(z1,c,z2))
-           )
-       )
+     let@ z1 = sq e1 in
+     let@ z2 = sq e2 in 
+     let x = fv() in
+     let c = fk() in 
+     Cletc(c, x, k x, Capp(z1,c,z2))
   | Pair(a,b) ->
-     sq a (fun z1 ->
-         sq b (fun z2 ->
-             let x=fv()in 
-             Cletv(x, Cpair(z1,z2), k x)
-           )
-       )
-  | In(i, e) -> sq e (fun z ->
-                                let x=fv()in 
-
-                   Cletv(x, Cin(i, z), k x)
-                 )
-  | Pr(i, e) -> sq e (fun z ->
-                                let x=fv()in 
-
-                   Clet(x, i, z, k x)
-                 )
-  | Fn(x, e) -> let f=fv() in
-               let c=fk()in 
-
-               Cletv(f, Cfn(c,x,rd e c), k f)
+     let@ z1 = sq a in
+     let@ z2 = sq b in
+     let x=fv()in 
+     Cletv(x, Cpair(z1,z2), k x)
+  | In(i, e) ->
+     let@ z = sq e in
+     let x=fv()in 
+     Cletv(x, Cin(i, z), k x)
+  | Pr(i, e) ->
+     let@ z = sq e in 
+     let x=fv()in 
+     Clet(x, i, z, k x)
+  | Fn(x, e) ->
+     let f=fv() in
+     let c=fk()in 
+     Cletv(f, Cfn(c,x,rd e c), k f)
   | Let(x,e1,e2) ->
      let j=fv()in
      Cletc(j,x,sq e2 k, rd e1 j)
   | Case(e,x1,e1,x2,e2) ->
-     sq e (fun z ->
-         let j=fk()in
-         let k1=fk()in
-         let k2=fk()in
-         let x=fv()in 
-         Cletc(j, x, k x,
-               Cletc(k1,x1,rd e1 j,
-                     Cletc(k2,x2,rd e2 j,
-                           Ccase(z,k1,k2)
-                       )
-                 )
-           )
+     let@ z = sq e in
+     let j=fk()in
+     let k1=fk()in
+     let k2=fk()in
+     let x=fv()in 
+     Cletc(j, x, k x,
+           Cletc(k1,x1,rd e1 j,
+                 Cletc(k2,x2,rd e2 j,
+                       Ccase(z,k1,k2)
+                   )
+             )
        )
+
 and rd ml k =
   match ml with
   | V s -> Cappc(k, s)
   | App(e1,e2) ->
-     sq e1 (fun x1 ->
-         sq e2 (fun x2 ->
-             Capp(x1,k,x2)
-           )
-       )
+     let@ x1 = sq e1 in
+     let@ x2 = sq e2 in
+     Capp(x1,k,x2)
   | Fn(x,e) ->
      let f=fv()in
      let j=fk()in
      Cletv(f, Cfn(j,x,rd e j),Cappc(k, f))
   | Pair(e1,e2) ->
-     sq e1 (fun x1 ->
-         sq e2 (fun x2 ->
-             let x=fv()in
-             Cletv(x,Cpair(x1,x2),Cappc(k,x))
-           )
-       )
-  | In(i, e) -> sq e (fun z -> let x=fv()in Cletv(x,Cin(i,z),Cappc(k,z)))
-  | U -> let x=fv()in Cletv(x, CU, Cappc(k,x))
-  | Pr(i, e) -> sq e (fun z ->
-                   let x=fv()in 
-                   Clet(x,i,z,Cappc(k,x))
-                 )
+     let@ x1 = sq e1 in
+     let@ x2 = sq e2 in
+     let x=fv()in
+     Cletv(x,Cpair(x1,x2),Cappc(k,x))
+  | In(i, e) ->
+     let@ z = sq e in
+     let x=fv()in
+     Cletv(x,Cin(i,z),Cappc(k,z))
+  | U ->
+     let x=fv()in
+     Cletv(x, CU, Cappc(k,x))
+  | Pr(i, e) ->
+     let@ z = sq e in
+     let x=fv()in 
+     Clet(x,i,z,Cappc(k,x))
   | Let(x,e1,e2) ->
      let j = fk()in 
      Cletc(j,x,rd e2 k, rd e1 j)
   | Case(e,x1,e1,x2,e2) ->
-     sq e (fun z ->
-         let k1,k2=fk(),fk()in 
-         Cletc(k1,x1,rd e1 k,
-               Cletc(k2,x2,rd e2 k,
-                     Ccase(z,k1,k2)
-                 )
-           )
+     let@ z = sq e in
+     let k1,k2=fk(),fk()in 
+     Cletc(k1,x1,rd e1 k,
+           Cletc(k2,x2,rd e2 k,
+                 Ccase(z,k1,k2)
+             )
        )
 
-
 let () =
-  (* #1 ((\x -> (g x, x)) y)*)
   let example =
     Let("pair", Fn("x",Fn("y",Pair(V"x",V"y"))),
-        Let("qpair", App(V"pair",V"q"),
-            App(V"qpair",V"w")
+        Let("swap", Fn("arg", Case(V"arg","a",In(1,V"a"),"b",In(0,V"b"))),
+            App(V"swap",App(V"pair",App(V"q",V"w")))
           )
       )
   in
