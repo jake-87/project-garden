@@ -8,7 +8,6 @@ type ml =
   | Fn of string * ml
   | Let of string * ml * ml
   | Case of ml * string * ml * string * ml
-[@@deriving show {with_path = false}]
 
 type ctm =
   | Cletv of string * cval * ctm
@@ -17,18 +16,16 @@ type ctm =
   | Cappc of string * string
   | Capp of string * string * string
   | Ccase of string * string * string
-[@@deriving show {with_path = false}]
 
 and cval =
   | CU
   | Cpair of string * string
   | Cin of int * string
   | Cfn of string * string * ctm
-[@@deriving show {with_path = false}]
 
 let rec spaces i =
   if i = 0 then ""
-  else " " ^ (spaces (i - 1))
+  else "  " ^ (spaces (i - 1))
 
 let (let@) x f = x f
 
@@ -37,10 +34,10 @@ let rec p_ctm i ctm =
   match ctm with
   | Clet(a,i,b,e) -> print_string ("let " ^ a ^ " = p" ^ string_of_int i
                                    ^ " " ^ b ^ " in\n");
-                    p_ctm (i+2) e
+                    p_ctm (i) e
   | Cletv(a,v,e) -> print_string ("letv " ^ a ^ " = "); p_cval (i+1)v;
                    print_string" in\n";
-                   p_ctm (i+1) e
+                   p_ctm (i) e
   | Cletc(a,b,e1,e2) ->
      print_string ("letc " ^ a ^ " " ^ b ^ " =\n"); p_ctm (i+1)e1;
      print_string " in\n";
@@ -64,7 +61,6 @@ let fv =
 let fk =
   let s = ref 0 in
   fun () -> let t = !s in incr s; "k" ^ string_of_int t
-
 
 let rec sq ml k =
   match ml with
@@ -149,18 +145,56 @@ and rd ml k =
              )
        )
 
+let rec hoist tm =
+    let f = hoist in
+    match tm with
+    | Cletc(a,b,
+        Cletc(q,w,r1,r2)
+        ,e2) -> Cletc(q,w,f r1,
+            Cletc(a,b,f r2,f e2)
+            )
+    | Cletc(q,w, Cletv(a,val',e1), e2) ->
+        Cletv(a,val',Cletc(q,w,f e1, f e2))
+    | Cletc(q,w, Clet(a,i,b,e1), e2) ->
+        Clet(a,i,b,Cletc(q,w,e1,e2))
+    | Cletc(a,b,q,w) -> Cletc(a,b,f q, f w)
+    | Clet(a,b,c,e) -> Clet(a,b,c,f e)
+    | Cletv(a,Cfn(q,w,e1),e2) ->
+        Cletv(a,Cfn(q,w,f e1), f e2)
+    | Cletv(a,b,e) -> Cletv(a,b,f e)
+    | t -> t
+
+(*
+  | Cletv of string * cval * ctm
+  | Clet of string * int * string * ctm
+  | Cletc of string * string * ctm * ctm
+  | Cappc of string * string
+  | Capp of string * string * string
+  | Ccase of string * string * string
+  and cval =
+  | CU
+  | Cpair of string * string
+  | Cin of int * string
+  | Cfn of string * string * ctm
+*)
+let fixish tm =
+    let rec go i t =
+        if i = 0 then t
+        else go (i - 1) (hoist t)
+    in
+    go 100 tm
+
 let () =
   let example =
     Let("pair", Fn("x",Fn("y",Pair(V"x",V"y"))),
         Let("swap", Fn("arg", Case(V"arg","a",In(1,V"a"),"b",In(0,V"b"))),
-            App(V"swap",App(V"pair",App(V"q",V"w")))
+            Let("arg",In(0,V"a"),
+            App(V"swap",V"arg"))
           )
       )
   in
-  print_endline "start:";
-  print_endline (show_ml example);
   let as_cps = rd example "NEXT" in
-  print_endline "\nafter:";
-  print_endline (show_ctm as_cps);
-  print_endline "\nslash\n";
   p_ctm 0 as_cps;
+  print_endline "\n\nhoisted:\n\n";
+  let h = fixish as_cps in
+  p_ctm 0 h
