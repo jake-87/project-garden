@@ -144,6 +144,30 @@ and rd tm k =
         )
         )
 
+let rec hoist tm =
+    let f = hoist in
+    match tm with
+    | Cletc(a,b,e1,Cletv(q,v,e2)) ->
+        Cletv(q,v,Cletc(a,b,e1,e2))
+    | Cletc(a,b,e1,e2) -> Cletc(a,b,f e1,f e2)
+    | Clet(a,i,b,e) -> Clet(a,i,b,f e)
+    | Cletv(a,v,e) -> Cletv(a,v,f e)
+    | t -> t
+(*
+  | Cletv of string * cval * ctm
+  | Clet of string * int * string * ctm
+  | Cletc of string * string * ctm * ctm
+  | Cappc of string * string
+  | Capp of string * string * string
+  | Ccase of string * string * string
+*)
+let fixish tm =
+    let rec go i t =
+        if i = 0 then t
+        else go (i - 1) (hoist t)
+    in
+    go 100 tm
+
 let () =
   let example =
     Let("pair", Fn("x",Fn("y",Pair(V"x",V"y"))),
@@ -155,3 +179,6 @@ let () =
   in
   let as_cps = rd example "NEXT" in
   p_ctm 0 as_cps;
+  print_endline "\n\nhoist:\n\n";
+  let h = fixish as_cps in
+  p_ctm 0 h
