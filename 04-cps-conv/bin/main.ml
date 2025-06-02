@@ -9,6 +9,30 @@ type ml =
   | Let of string * ml * ml
   | Case of ml * string * ml * string * ml
 
+let rec p_tm v m =
+
+  match m with
+  | V s -> print_string s
+  | U -> print_string "U"
+  | App(a,b) -> print_string "("; p_tm 0 a; print_string ") ("; p_tm 0 b; print_string ")"
+  | Pair(a,b) -> print_string "("; p_tm 0 a; print_string ", "; p_tm 0 b; print_string ")"
+  | In(i, m) -> print_string "inj"; print_int i; print_string " ("; p_tm 0 m; print_string ")"
+  | Pr(i, m) -> print_string "prj"; print_int i; print_string " ("; p_tm 0 m; print_string ")"
+  | Fn (s, m) -> print_string "fun "; print_string s; print_string " -> "; p_tm v m
+  | Let(s,a,b) -> print_string "let "; print_string s; print_string " = ";
+      p_tm v a; print_string " in\n"; 
+
+      p_tm (v + 1) b
+  | Case (c, a, am, b, bm) ->
+      print_string "case "; p_tm v c; print_string " of\n";
+      for i = 0 to v do begin
+        print_string " "
+      end done;print_string ("inj0 " ^ a ^ " -> "); p_tm v am; print_newline();
+      for i = 0 to v do begin
+        print_string " "
+      end done;print_string ("inj1 " ^ b ^ " -> "); p_tm v bm; print_newline();
+
+
 type ctm =
   | Cletv of string * cval * ctm
   | Clet of string * int * string * ctm
@@ -37,7 +61,7 @@ let rec count (tm: ctm) s =
   | Ccase (a, b, c) -> i a + i b + i c
 and count_v v s =
   let i x = if x = s then 1 else 0 in
-    match v with
+  match v with
   | CU -> 0
   | Cpair (a, b) -> i a + i b
   | Cin (_, a) -> i a
@@ -70,13 +94,13 @@ and subst e q w =
   | Cappc(s,p) when p = q -> Cappc(s,w)
   | Cappc(s,p) -> Cappc(s,p)
   | Capp(a,b,c) ->
-     let sel a = if a = q then w else a in
-     let a,b,c = sel a, sel b, sel c in
-     Capp(a,b,c)
+      let sel a = if a = q then w else a in
+      let a,b,c = sel a, sel b, sel c in
+      Capp(a,b,c)
   | Ccase(a,b,c) ->
-     let sel a = if a = q then w else a in
-     let a,b,c = sel a, sel b, sel c in
-     Ccase(a,b,c)
+      let sel a = if a = q then w else a in
+      let a,b,c = sel a, sel b, sel c in
+      Ccase(a,b,c)
 
 
 let rec spaces i =
@@ -90,14 +114,14 @@ let rec p_ctm i ctm =
   match ctm with
   | Clet(a,i,b,e) -> print_string ("let " ^ a ^ " = p" ^ string_of_int i
                                    ^ " " ^ b ^ " in\n");
-                    p_ctm (i) e
+      p_ctm (i) e
   | Cletv(a,v,e) -> print_string ("letv " ^ a ^ " = "); p_cval (i+1)v;
-                   print_string" in\n";
-                   p_ctm (i) e
+      print_string" in\n";
+      p_ctm (i) e
   | Cletc(a,b,e1,e2) ->
-     print_string ("letc " ^ a ^ " " ^ b ^ " =\n"); p_ctm (i+1)e1;
-     print_string " in\n";
-     p_ctm (i) e2
+      print_string ("letc " ^ a ^ " " ^ b ^ " =\n"); p_ctm (i+1)e1;
+      print_string " in\n";
+      p_ctm (i) e2
   | Cappc(a,b) -> print_string @@ a ^ " " ^ b
   | Capp(a,b,c) -> print_string @@ a ^ " " ^ b ^ " " ^ c
   | Ccase(a,b,c) -> print_string @@ "case " ^ a ^ " of |l=> " ^ b ^ " |r=> " ^ c 
@@ -107,7 +131,7 @@ and p_cval i cval =
   | Cpair(a,b) -> print_string ("(" ^ a ^ ", " ^ b ^ ")")
   | Cin(i,s) -> print_string @@ "inj" ^ string_of_int i ^ " " ^ s
   | Cfn(a,b,e) -> print_string @@ "funk " ^ a ^ " " ^ b ^ " ->\n";
-                 p_ctm i e
+      p_ctm i e
   
 
 let fv =
@@ -123,98 +147,95 @@ let fj =
   fun () -> let t = !s in incr s; "j" ^ string_of_int t
 
 let rec sq tm k =
-    match tm with
-    | V x -> k x
-    | U -> let x=fv()in Cletv(x,CU,k x)
-    | App(a,b) ->
-        let@ z1 = sq a in
-        let@ z2 = sq b in
-        let k'=fk() in
-        let x=fv() in
-        Cletc(k',x,k x,Capp(z1,k',z2)) 
-    | Pair(a,b) ->
-        let@ z1 = sq a in
-        let@ z2 = sq b in
-        let x=fv() in
-        Cletv(x,Cpair(z1,z2),k x)
-    | In(i,a) ->
-        let@ z = sq a in
-        let x=fv() in
-        Cletv(x, Cin(i,z), k x)
-    | Pr(i, a) -> 
-        let@ z = sq a in
-        let x=fv() in
-        Clet(x,i,z,k x)
-    | Fn(x,e) ->
-        let f=fk()in
-        let k'=fk()in
+  match tm with
+  | V x -> k x
+  | U -> let x=fv()in Cletv(x,CU,k x)
+  | App(a,b) ->
+      let@ z1 = sq a in
+      let@ z2 = sq b in
+      let k'=fk() in
+      let x=fv() in
+      Cletc(k',x,k x,Capp(z1,k',z2)) 
+  | Pair(a,b) ->
+      let@ z1 = sq a in
+      let@ z2 = sq b in
+      let x=fv() in
+      Cletv(x,Cpair(z1,z2),k x)
+  | In(i,a) ->
+      let@ z = sq a in
+      let x=fv() in
+      Cletv(x, Cin(i,z), k x)
+  | Pr(i, a) -> 
+      let@ z = sq a in
+      let x=fv() in
+      Clet(x,i,z,k x)
+  | Fn(x,e) ->
+      let f=fk()in
+      let k'=fk()in
 
-        Cletv(k', Cfn(k',x,rd e k'), k f)
-    | Let(x,e1,e2) ->
-        let j=fj()in
+      Cletv(k', Cfn(k',x,rd e k'), k f)
+  | Let(x,e1,e2) ->
+      let j=fj()in
 
-        Cletc(j,x,sq e2 k,rd e1 j)
-    | Case(e,x1,e1,x2,e2) ->
-        let@ z = sq e in
-        let k1,k2 = fk(),fk() in 
-        let j, x = fj(),fv() in
-        Cletc(j,x,k x,
-        Cletc(k1,x1,rd e1 j,
-        Cletc(k2,x2,rd e2 j,
-        Ccase(z,k1,k2)
-        )
-        ))
+      Cletc(j,x,sq e2 k,rd e1 j)
+  | Case(e,x1,e1,x2,e2) ->
+      let@ z = sq e in
+      let k1,k2 = fk(),fk() in 
+      let j, x = fj(),fv() in
+      Cletc(j,x,k x,
+            Cletc(k1,x1,rd e1 j,
+                  Cletc(k2,x2,rd e2 j,
+                        Ccase(z,k1,k2)
+                       )
+                 ))
 and rd tm k = 
-    match tm with
-    | V x -> Cappc(k, x)
-    | U -> let x=fv()in Cletv(x,CU,Cappc(k, x))
-    | App(a,b) -> 
-        let@ x1 = sq a in
-        let@ x2 = sq b in
-        Capp(x1,k,x2)
-    | Fn(x,e) ->
-        let f,j=fk(),fj()in
-        Cletv(f,Cfn(j,x,rd e j), Cappc(k,f))
-    | Pair(a,b) ->
-        let@ z1 = sq a in
-        let@ z2 = sq b in
-        let x = fv()in
-        Cletv(x, Cpair(z1,z2), Cappc(k,x))
-    | In(i,a) -> 
-        let@ z = sq a in
-        let x=fv() in
-        Cletv(x,Cin(i,z),Cappc(k,x))
-    | Pr(i,a) ->    
-        let@ z = sq a in
-        let x=fv()in
-        Clet(x,i,z,Cappc(k,x))
-    | Let(x,e1,e2) ->
-        let j=fj()in
-        Cletc(j,x,rd e2 k,rd e1 j)
-    | Case(e,x1,e1,x2,e2) ->
-        let@ z = sq e in
-        let k1,k2 = fk(),fk() in
-        Cletc(k1,x1,rd e1 k,
-        Cletc(k2,x2,rd e2 k,
-        Ccase(z,k1,k2)
-        )
-        )
+  match tm with
+  | V x -> Cappc(k, x)
+  | U -> let x=fv()in Cletv(x,CU,Cappc(k, x))
+  | App(a,b) -> 
+      let@ x1 = sq a in
+      let@ x2 = sq b in
+      Capp(x1,k,x2)
+  | Fn(x,e) ->
+      let f,j=fk(),fj()in
+      Cletv(f,Cfn(j,x,rd e j), Cappc(k,f))
+  | Pair(a,b) ->
+      let@ z1 = sq a in
+      let@ z2 = sq b in
+      let x = fv()in
+      Cletv(x, Cpair(z1,z2), Cappc(k,x))
+  | In(i,a) -> 
+      let@ z = sq a in
+      let x=fv() in
+      Cletv(x,Cin(i,z),Cappc(k,x))
+  | Pr(i,a) ->    
+      let@ z = sq a in
+      let x=fv()in
+      Clet(x,i,z,Cappc(k,x))
+  | Let(x,e1,e2) ->
+      let j=fj()in
+      Cletc(j,x,rd e2 k,rd e1 j)
+  | Case(e,x1,e1,x2,e2) ->
+      let@ z = sq e in
+      let k1,k2 = fk(),fk() in
+      Cletc(k1,x1,rd e1 k,
+            Cletc(k2,x2,rd e2 k,
+                  Ccase(z,k1,k2)
+                 )
+           )
 
 let rec hoist tm =
   let f = hoist in
   match tm with
   (* rewrite *)
   | Cletc(a,b,e1,Cletv(q,v,e2)) ->
-     Cletv(q,v,Cletc(a,b,e1,e2))
+      Cletv(q,v,Cletc(a,b,e1,e2))
   (* inline *)
   | Cletc(a,b,Cappc(q,w),e) when b = w ->
-     subst e a q
+      subst e a q
   (* inline *)
   | Cletc(a,b,body,Cappc(q,w)) when q = a ->
-     print_endline "\nme?";
-     print_endline b;
-     print_endline w;
-     Cletc(a,b,body,subst body b w)
+      Cletc(a,b,body,subst body b w)
 
   (* dead value elim *)
   | Cletc(a,_,_,e1) when count e1 a = 0 -> e1
@@ -233,19 +254,19 @@ and hoist_v (tm: cval) =
   | _ -> tm
 
 let rec fixish tm =
-  print_endline "\n\n-------------------\n\n";
-  p_ctm 0 tm;
   let n = hoist tm in
   if n = tm then n
   else fixish n 
 
 let () =
   let example =
-        Let("oddid", Fn("arg", Case(V"arg","a",V"a","b",V"b")),
-            Let("arg",In(0,V"a"),
-            App(V"oddid",App(V"oddid",V"arg")))
-      )
+    Let("getone", Fn("arg", Case(V"arg","a",V"a","b",V"b")),
+        Let("arg",In(0,In(0,V"a")),
+            App(V"getone",App(V"getone",V"arg")))
+       )
   in
+  p_tm 0 example;
+  print_endline "\n\n";
   let as_cps = rd example "NEXT" in
   p_ctm 0 as_cps;
   print_endline "\n\nhoist:\n\n";
