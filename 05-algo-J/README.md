@@ -1,4 +1,6 @@
-# Algorithm J
+# Algorithm J (simple)
+
+Does not handle recursion.
 
 Does not include a parser. One must modify the file if you want to change the term.
 
